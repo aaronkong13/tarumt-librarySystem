@@ -75,8 +75,8 @@ Follow these steps to set up the project on your local machine:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/cYLee001/tarumt-club-system.git
-cd tarumt-club-system
+git clone https://github.com/aaronkong13/tarumt-librarySystem.git
+cd tarumt-librarySystem
 ```
 
 ### 2. Install PHP Dependencies
@@ -102,7 +102,7 @@ cp .env.example .env
 Edit the `.env` file and update the following settings:
 
 ```env
-APP_NAME="TARUMT Club System"
+APP_NAME="Laravel"
 APP_URL=http://localhost:8000
 
 DB_CONNECTION=mysql
@@ -124,7 +124,7 @@ php artisan key:generate
 Create a new MySQL database matching the name in your `.env` file:
 
 ```sql
-CREATE DATABASE tarumt_club_system;
+CREATE DATABASE lib_db;
 ```
 
 ### 7. Run Database Migrations
