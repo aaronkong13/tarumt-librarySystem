@@ -4,13 +4,14 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +22,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'phone',
+        'address',
+        'status',
     ];
 
     /**
@@ -45,4 +50,37 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Check if user is an Admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'Admin';
+    }
+
+    /**
+     * Check if user is a Staff member
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'Staff';
+    }
+
+    /**
+     * Check if user is a Student
+     */
+    public function isStudent(): bool
+    {
+        return $this->role === 'Student';
+    }
+
+    /**
+     * Check if user is active
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'Active';
+    }
 }
+
