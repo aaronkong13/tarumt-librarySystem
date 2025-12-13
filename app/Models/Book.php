@@ -13,14 +13,26 @@ class Book extends Model
     // 1. Define the table name (Optional, but good for clarity)
     protected $table = 'books';
 
+    // Custom primary key matches migration definition
+    protected $primaryKey = 'bookId';
+    public $incrementing = true;
+    protected $keyType = 'int';
+
+    public function getRouteKeyName()
+    {
+        return 'bookId';
+    }
+
     // 2. Allow Mass Assignment (CRITICAL)
     // This tells Laravel: "It is safe to save these fields automatically."
     // If you don't list a field here, Book::create() will ignore it.
     protected $fillable = [
         'title',
+        'author',
         'isbn',
         'year',
-        'cover_path', // To store the file path of the image
+        'category',
+        'cover_image', // BLOB - stores actual image bytes
         'status',     // e.g., 'available', 'lost'
     ];
 

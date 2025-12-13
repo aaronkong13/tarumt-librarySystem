@@ -56,6 +56,14 @@ class BookSecurityService
             $sanitized['title'] = $cleanTitle;
         }
 
+        if (isset($data['author'])) {
+            $cleanAuthor = strip_tags(trim($data['author']));
+            if ($cleanAuthor === '') {
+                throw new Exception("Validation Error: Author is required.");
+            }
+            $sanitized['author'] = $cleanAuthor;
+        }
+
         // 2. Handling the ISBN
         if (isset($data['isbn'])) {
             // OWASP [11]: Validate for expected data types (Whitelist check).
@@ -72,6 +80,22 @@ class BookSecurityService
                 throw new Exception("Validation Error: Year must be a valid number.");
             }
             $sanitized['year'] = (int)$data['year'];
+        }
+
+        if (isset($data['category'])) {
+            $cleanCategory = strip_tags(trim($data['category']));
+            if ($cleanCategory === '') {
+                throw new Exception("Validation Error: Category is required.");
+            }
+            $sanitized['category'] = $cleanCategory;
+        }
+
+        if (isset($data['status'])) {
+            $allowed = ['Available', 'Borrowed', 'Lost', 'Damaged'];
+            if (!in_array($data['status'], $allowed, true)) {
+                throw new Exception("Validation Error: Invalid status value.");
+            }
+            $sanitized['status'] = $data['status'];
         }
 
         return $sanitized;

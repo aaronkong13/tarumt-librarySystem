@@ -50,3 +50,4 @@ Route::middleware('auth')->group(function () {
     Route::post('/books/store', [BookController::class, 'store'])->name('books.store');
     Route::get('/books', [BookController::class, 'index'])->name('books.index');
 });
+Route::resource('books', BookController::class)->except(['show']);
