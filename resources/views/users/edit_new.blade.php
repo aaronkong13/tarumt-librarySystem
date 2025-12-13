@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit My Profile - BookHub</title>
+    <title>Edit User - BookHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
                 </a>
 
                 @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
-                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
+                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
                     <i class="fa-solid fa-users w-6"></i>
                     <span class="font-medium text-sm">User Management</span>
                 </a>
@@ -82,10 +82,10 @@
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('users.show', Auth::id()) }}" class="text-gray-400 hover:text-gray-600">
+                    <a href="{{ route('users.index') }}" class="text-gray-400 hover:text-gray-600">
                         <i class="fa-solid fa-arrow-left"></i>
                     </a>
-                    <h2 class="text-xl font-bold text-gray-900">Edit My Profile</h2>
+                    <h2 class="text-xl font-bold text-gray-900">Edit User Profile</h2>
                 </div>
             </header>
 
@@ -120,7 +120,7 @@
 
                     <!-- Form Card -->
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                        <form method="POST" action="{{ route('profile.update') }}">
+                        <form method="POST" action="{{ route('users.update', $user) }}">
                             @csrf
                             @method('PUT')
 
@@ -161,10 +161,16 @@
 
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Role
+                                                Role <span class="text-red-500">*</span>
                                             </label>
-                                            <input type="text" value="{{ ucfirst($user->role) }}" disabled
-                                                class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500">
+                                            <select name="role" required
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                                <option value="">Select Role</option>
+                                                <option value="Student" {{ old('role', $user->role) === 'Student' ? 'selected' : '' }}>Student</option>
+                                                @if(Auth::user()->role === 'Admin')
+                                                <option value="Staff" {{ old('role', $user->role) === 'Staff' ? 'selected' : '' }}>Staff</option>
+                                                @endif
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -221,14 +227,14 @@
 
                             <!-- Action Buttons -->
                             <div class="mt-8 flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-                                <a href="{{ route('users.show', Auth::id()) }}" 
+                                <a href="{{ route('users.index') }}" 
                                     class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
                                     Cancel
                                 </a>
                                 <button type="submit" 
                                     class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors flex items-center gap-2">
                                     <i class="fa-solid fa-save"></i>
-                                    Update My Profile
+                                    Update User
                                 </button>
                             </div>
                         </form>
