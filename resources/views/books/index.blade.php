@@ -12,6 +12,12 @@
         /* Custom scrollbar for sidebar if needed */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .book-cover-clickable { cursor: pointer; transition: transform 0.2s; }
+        .book-cover-clickable:hover { transform: scale(1.1); }
+        
+        #imageModal { display: none; }
+        #imageModal.active { display: flex; }
     </style>
 </head>
 <body class="bg-[#F3F4F6] text-gray-800">
@@ -30,10 +36,6 @@
             </div>
 
             <nav class="flex-1 px-4 py-6 space-y-2">
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-border-all w-6"></i>
-                    <span class="font-medium text-sm">Dashboard</span>
-                </a>
                 
                 <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
                     <i class="fa-solid fa-book w-6"></i>
@@ -148,45 +150,71 @@
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                    <form method="GET" action="{{ route('books.index') }}" class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <form method="GET" action="{{ route('books.index') }}" class="space-y-4">
                         
-                        <div class="flex flex-col md:flex-row gap-3 items-center w-full md:w-auto">
-                            <div class="flex items-center text-gray-500 mr-2">
-                                <i class="fa-solid fa-filter mr-2"></i> Filters:
-                            </div>
-                            
-                            <div class="relative w-full md:w-48">
-                                <input name="category" value="{{ $filters['category'] ?? '' }}" placeholder="All Categories" 
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="text-xs text-gray-500 mb-1 block">Search Keyword</label>
+                                <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Title, Author, ISBN..." 
                                     class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
                             </div>
 
-                            <div class="relative w-full md:w-48">
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">Status</label>
                                 <select name="status" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
-                                    <option value="">All Status</option>
+                                    <option value="">All</option>
                                     @foreach(['Available','Borrowed','Lost','Damaged'] as $s)
                                         <option value="{{ $s }}" {{ ($filters['status'] ?? '') === $s ? 'selected' : '' }}>{{ $s }}</option>
                                     @endforeach
                                 </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-3.5 text-xs text-gray-400 pointer-events-none"></i>
+                            </div>
+                            
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">Category</label>
+                                <select name="category" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
+                                    <option value="">All Categories</option>
+                                    @foreach($categories as $cat)
+                                        <option value="{{ $cat }}" {{ ($filters['category'] ?? '') === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            <div class="relative w-full md:w-48">
-                                <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search title..." 
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">Year From</label>
+                                <input type="number" name="year_from" value="{{ $filters['year_from'] ?? '' }}" placeholder="2000" min="1900" max="2099"
                                     class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
                             </div>
 
-                            <a href="{{ route('books.index') }}" class="text-sm font-medium text-gray-500 hover:text-indigo-600 flex items-center gap-1 px-2">
-                                <i class="fa-solid fa-rotate-right text-xs"></i> Reset
-                            </a>
+                            <div>
+                                <label class="text-xs text-gray-500 mb-1 block">Year To</label>
+                                <input type="number" name="year_to" value="{{ $filters['year_to'] ?? '' }}" placeholder="2025" min="1900" max="2099"
+                                    class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
+                            </div>
                         </div>
 
-                        <div class="flex gap-2 w-full md:w-auto">
-                            <button type="submit" class="hidden md:inline-block px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
-                                Apply
-                            </button>
-                            <a href="{{ route('books.create') }}" class="flex-1 md:flex-none text-center px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5">
-                                <i class="fa-solid fa-plus mr-2"></i> Add New Book
-                            </a>
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-3">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-xs text-gray-500">Sort:</label>
+                                    <select name="sort" class="bg-gray-50 border-none text-sm font-medium rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500 text-gray-600">
+                                        <option value="">Newest First</option>
+                                        <option value="title" {{ ($filters['sort'] ?? '') === 'title' ? 'selected' : '' }}>Title A-Z</option>
+                                        <option value="year" {{ ($filters['sort'] ?? '') === 'year' ? 'selected' : '' }}>Year (Desc)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <a href="{{ route('books.index') }}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">
+                                    <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+                                </a>
+                                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">
+                                    <i class="fa-solid fa-search mr-1"></i> Search
+                                </button>
+                                <a href="{{ route('books.create') }}" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all">
+                                    <i class="fa-solid fa-plus mr-1"></i> Add Book
+                                </a>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -209,8 +237,11 @@
                                 <td class="py-4 px-6">
                                     <div class="flex items-center gap-4">
                                         <div class="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold text-indigo-600 bg-indigo-50 overflow-hidden">
-                                            @if($book->cover_path)
-                                                <img src="{{ asset('storage/' . $book->cover_path) }}" class="w-full h-full object-cover">
+                                            @if($book->cover_image)
+                                                <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}" 
+                                                     class="w-full h-full object-cover book-cover-clickable" 
+                                                     onclick="openImageModal(this.src, '{{ addslashes($book->title) }}')"
+                                                     title="Click to zoom">
                                             @else
                                                 {{ substr($book->title, 0, 1) }}
                                             @endif
@@ -278,6 +309,49 @@
             </div>
         </main>
     </div>
+
+    <!-- Image Zoom Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 items-center justify-center p-4" onclick="closeImageModal()">
+        <div class="relative max-w-4xl max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="absolute top-0 right-0 p-4 z-10">
+                <button onclick="closeImageModal()" class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:text-gray-900 transition-colors">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-4">Book Cover</h3>
+                <div class="flex items-center justify-center">
+                    <img id="modalImage" src="" alt="Book Cover" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openImageModal(imageSrc, bookTitle) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            modalImg.src = imageSrc;
+            modalTitle.textContent = bookTitle;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            }
+        });
+    </script>
 
 </body>
 </html>

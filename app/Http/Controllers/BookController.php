@@ -50,6 +50,7 @@ class BookController extends Controller
         return view('books.index', [
             'books' => $books,
             'filters' => $request->only(['q', 'status', 'category', 'year_from', 'year_to', 'sort']),
+            'categories' => Book::distinct()->pluck('category')->sort()->values(),
         ]);
     }
 
@@ -80,7 +81,8 @@ class BookController extends Controller
 
         if ($request->hasFile('cover')) {
             $security->validateCoverImage($request->file('cover'));
-            $cleanData['cover_path'] = $request->file('cover')->store('covers', 'public');
+            // Store image as BLOB (binary data)
+            $cleanData['cover_image'] = file_get_contents($request->file('cover')->getRealPath());
         }
 
         Book::create($cleanData);
@@ -115,12 +117,8 @@ class BookController extends Controller
 
         if ($request->hasFile('cover')) {
             $security->validateCoverImage($request->file('cover'));
-
-            if ($book->cover_path) {
-                Storage::disk('public')->delete($book->cover_path);
-            }
-
-            $cleanData['cover_path'] = $request->file('cover')->store('covers', 'public');
+            // Replace with new image BLOB (old one is automatically overwritten)
+            $cleanData['cover_image'] = file_get_contents($request->file('cover')->getRealPath());
         }
 
         $book->update($cleanData);
@@ -139,6 +137,6 @@ class BookController extends Controller
 
         $book->delete();
 
-        return redirect()->route('books.index')->with('success', 'Book removed (soft delete).');
+        return redirect()->route('books.index')->with('success', "$book->title has been removed.");
     }
 }

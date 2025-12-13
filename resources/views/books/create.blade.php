@@ -103,17 +103,44 @@
 
                 <div>
                     <label class="block mb-2 text-sm font-bold text-gray-900">Cover Image</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-2"></i>
-                                <p class="text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                                <p class="text-xs text-gray-400 mt-1">JPG, PNG or GIF (MAX. 2MB)</p>
-                            </div>
-                            <input type="file" name="cover" class="hidden" />
-                        </label>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                    <p class="text-xs text-gray-400 mt-1">JPG, PNG or GIF (MAX. 2MB)</p>
+                                </div>
+                                <input type="file" name="cover" class="hidden" id="coverInput" accept="image/*" />
+                            </label>
+                        </div>
+                        <!-- Image Preview -->
+                        <div id="previewContainer" class="hidden">
+                            <p class="text-xs text-gray-500 mb-2">Preview:</p>
+                            <img id="previewImage" src="" alt="Preview" class="h-40 w-32 object-cover rounded-lg border border-indigo-200 shadow-md bg-gray-100">
+                        </div>
                     </div>
                 </div>
+
+                <script>
+                    const coverInput = document.getElementById('coverInput');
+                    const previewContainer = document.getElementById('previewContainer');
+                    const previewImage = document.getElementById('previewImage');
+
+                    coverInput.addEventListener('change', function(e) {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = function(event) {
+                                previewImage.src = event.target.result;
+                                previewContainer.classList.remove('hidden');
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            previewContainer.classList.add('hidden');
+                        }
+                    });
+                </script>
 
                 <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-50 mt-8">
                     <a href="{{ route('books.index') }}" class="px-6 py-3 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 transition-all">

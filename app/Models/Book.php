@@ -32,7 +32,7 @@ class Book extends Model
         'isbn',
         'year',
         'category',
-        'cover_path', // To store the file path of the image
+        'cover_image', // BLOB - stores actual image bytes
         'status',     // e.g., 'available', 'lost'
     ];
 
