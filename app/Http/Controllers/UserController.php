@@ -8,6 +8,7 @@ use App\Services\InputValidationService;
 use App\Services\AccessControlService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * User Management Controller
@@ -128,6 +129,15 @@ class UserController extends Controller
     }
 
     /**
+     * Show edit form for own profile (separate from user management)
+     */
+    public function editProfile()
+    {
+        $user = Auth::user();
+        return view('users.profile-edit', compact('user'));
+    }
+
+    /**
      * Update the specified user in database
      */
     public function update(Request $request, User $user)
@@ -138,6 +148,36 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to edit this profile.');
             }
 
+            // Input Validation
+            $validatedData = InputValidationService::validateProfileUpdate(
+                $request->all(),
+                $user->id
+            );
+
+            // Factory Pattern: Update user
+            UserFactory::update($user, $validatedData);
+
+            return redirect()->route('users.show', $user)
+                ->with('success', 'Profile updated successfully.');
+        } catch (ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->validator)
+                ->withInput();
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Update own profile (separate from user management)
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            
             // Input Validation
             $validatedData = InputValidationService::validateProfileUpdate(
                 $request->all(),

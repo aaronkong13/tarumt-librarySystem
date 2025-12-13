@@ -39,6 +39,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
     });
     
+    // --- Profile Routes (Personal profile editing) ---
+    Route::get('/profile/edit', [UserController::class, 'editProfile'])->name('profile.edit');
+    Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+    
     // --- User Profile Routes (must be after /users/create) ---
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
@@ -46,8 +50,5 @@ Route::middleware('auth')->group(function () {
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.deactivate');
     
     // --- Book Management Routes ---
-    Route::get('/books/create', [BookController::class, 'create'])->name('books.create');
-    Route::post('/books/store', [BookController::class, 'store'])->name('books.store');
-    Route::get('/books', [BookController::class, 'index'])->name('books.index');
+    Route::resource('books', BookController::class)->except(['show']);
 });
-Route::resource('books', BookController::class)->except(['show']);

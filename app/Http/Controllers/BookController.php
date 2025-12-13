@@ -12,6 +12,7 @@ use App\Services\BookSearch\Strategies\SortStrategy;
 use App\Services\BookSearch\Strategies\StatusFilter;
 use App\Services\BookSearch\Strategies\YearRangeFilter;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class BookController extends Controller
 {
@@ -29,16 +30,10 @@ class BookController extends Controller
         ]);
     }
 
-    private function currentUserOrStub()
-    {
-        // Temporarily allow testing without auth; falls back to a stub staff user
-        return auth()->user() ?: (object) ['id' => 0, 'role' => 'staff'];
-    }
-
     // --- LIST ---
     public function index(Request $request, BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         $query = Book::query();
         $query = $this->searchContext->apply($query, $request);
@@ -57,7 +52,7 @@ class BookController extends Controller
     // --- CREATE ---
     public function create(BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         return view('books.create');
     }
@@ -65,7 +60,7 @@ class BookController extends Controller
     // --- STORE ---
     public function store(Request $request, BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -93,7 +88,7 @@ class BookController extends Controller
     // --- EDIT ---
     public function edit(Book $book, BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         return view('books.edit', compact('book'));
     }
@@ -101,7 +96,7 @@ class BookController extends Controller
     // --- UPDATE ---
     public function update(Request $request, Book $book, BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -129,7 +124,7 @@ class BookController extends Controller
     // --- DELETE (SOFT) ---
     public function destroy(Book $book, BookSecurityService $security)
     {
-        $security->enforceStaffAccess($this->currentUserOrStub());
+        $security->enforceStaffAccess(Auth::user());
 
         if ($book->status === 'Borrowed') {
             return back()->withErrors(['message' => 'Cannot delete a borrowed book.']);
