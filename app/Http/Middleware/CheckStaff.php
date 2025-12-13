@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
 
 class CheckStaff
 {
@@ -15,11 +16,11 @@ class CheckStaff
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check()) {
+        if (!Auth::check()) {
             return redirect()->route('login')->with('error', 'Please login first.');
         }
 
-        $user = auth()->user();
+        $user = Auth::user();
         
         // Allow both Staff and Admin
         if ($user->role !== 'Staff' && $user->role !== 'Admin') {
