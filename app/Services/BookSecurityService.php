@@ -24,8 +24,7 @@ class BookSecurityService
         }
 
         // OWASP [84]: Restrict access to protected URLs to only authorized users.
-        // Allow Staff and Admin roles (case-sensitive)
-        if (!in_array($user->role, ['Staff', 'Admin'], true)) {
+        if ($user->role !== 'staff') {
             Log::warning("Security Alert: Unauthorized access attempt by User ID {$user->id}.");
             abort(403, 'Unauthorized: Staff privileges required.');
         }

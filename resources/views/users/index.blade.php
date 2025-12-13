@@ -3,322 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management - BookHub</title>
+    <title>User Management - Library System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-[#F3F4F6] text-gray-800">
+<body class="bg-gray-50 text-gray-800">
 
-    <div class="flex min-h-screen">
-
-        <!-- Sidebar -->
-        <aside class="w-64 bg-[#0F172A] text-white flex-shrink-0 hidden md:flex flex-col fixed h-full z-20">
-            <div class="h-20 flex items-center px-8 border-b border-gray-800">
-                <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fa-solid fa-book-open text-white text-sm"></i>
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-book-open text-blue-600 text-2xl mr-3"></i>
+                    <span class="font-bold text-xl text-gray-900">LMS Admin</span>
                 </div>
-                <div>
-                    <h1 class="font-bold text-lg tracking-tight">BookHub</h1>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-wider">Management System</p>
-                </div>
-            </div>
-
-            <nav class="flex-1 px-4 py-6 space-y-2">
-                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-house w-6"></i>
-                    <span class="font-medium text-sm">Dashboard</span>
-                </a>
-
-                <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-book w-6"></i>
-                    <span class="font-medium text-sm">Books</span>
-                </a>
-
-                @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
-                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
-                    <i class="fa-solid fa-users w-6"></i>
-                    <span class="font-medium text-sm">User Management</span>
-                </a>
-                @endif
-                
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-chart-simple w-6"></i>
-                    <span class="font-medium text-sm">Reports</span>
-                </a>
-
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-gear w-6"></i>
-                    <span class="font-medium text-sm">Settings</span>
-                </a>
-            </nav>
-
-            <div class="p-4 border-t border-gray-800">
-                <a href="{{ route('users.show', Auth::id()) }}" class="block">
-                    <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
-                            <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
-                        </div>
-                        <form action="{{ route('logout') }}" method="POST" onclick="event.stopPropagation();">
-                            @csrf
-                            <button type="submit" class="text-gray-400 hover:text-white transition-colors">
-                                <i class="fa-solid fa-right-from-bracket"></i>
-                            </button>
-                        </form>
-                    </div>
-                </a>
-            </div>
-        </aside>
-
-        <main class="flex-1 md:ml-64 relative">
-            
-            <!-- Header -->
-            <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
-                <h2 class="text-xl font-bold text-gray-900">User Management</h2>
-                
-                <div class="flex items-center gap-6">
-                    <div class="relative hidden md:block">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-                        <input type="text" placeholder="Search users..." class="bg-gray-50 border border-gray-200 text-sm rounded-lg pl-10 pr-4 py-2.5 w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <button class="relative p-2 text-gray-400 hover:text-gray-600">
-                        <i class="fa-regular fa-bell text-xl"></i>
-                        <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                    </button>
-                </div>
-            </header>
-
-                
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-[#E0E7FF] p-6 rounded-2xl relative overflow-hidden">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-indigo-600 font-medium text-sm mb-1">Total Users</p>
-                                <h3 class="text-3xl font-bold text-gray-900">{{ $users->total() }}</h3>
-                                <p class="text-xs text-green-600 font-semibold mt-2 flex items-center">
-                                    <i class="fa-solid fa-arrow-up mr-1"></i> Active users
-                                </p>
-                            </div>
-                            <div class="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center text-indigo-600">
-                                <i class="fa-solid fa-users text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-[#F3E8FF] p-6 rounded-2xl relative overflow-hidden">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-purple-700 font-medium text-sm mb-1">Students</p>
-                                <h3 class="text-3xl font-bold text-gray-900">
-                                    {{ App\Models\User::where('role', 'Student')->count() }}
-                                </h3>
-                            </div>
-                            <div class="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center text-purple-600">
-                                <i class="fa-solid fa-user-graduate text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-[#DCFCE7] p-6 rounded-2xl relative overflow-hidden">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-green-700 font-medium text-sm mb-1">Staff</p>
-                                <h3 class="text-3xl font-bold text-gray-900">
-                                    {{ App\Models\User::where('role', 'Staff')->count() }}
-                                </h3>
-                            </div>
-                            <div class="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center text-green-600">
-                                <i class="fa-solid fa-user-tie text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-[#FEE2E2] p-6 rounded-2xl relative overflow-hidden">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-red-700 font-medium text-sm mb-1">Admins</p>
-                                <h3 class="text-3xl font-bold text-gray-900">
-                                    {{ App\Models\User::where('role', 'Admin')->count() }}
-                                </h3>
-                            </div>
-                            <div class="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center text-red-600">
-                                <i class="fa-solid fa-shield-halved text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Filter and Search -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                    <form method="GET" action="{{ route('users.index') }}" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                            <div class="md:col-span-2">
-                                <label class="text-xs text-gray-500 mb-1 block">Search</label>
-                                <input name="q" value="{{ request('q') }}" placeholder="Name, Email, Student ID..." 
-                                    class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
-                            </div>
-
-                            <div>
-                                <label class="text-xs text-gray-500 mb-1 block">Role</label>
-                                <select name="role" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600">
-                                    <option value="">All Roles</option>
-                                    <option value="Student" {{ request('role') === 'Student' ? 'selected' : '' }}>Student</option>
-                                    <option value="Staff" {{ request('role') === 'Staff' ? 'selected' : '' }}>Staff</option>
-                                    <option value="Admin" {{ request('role') === 'Admin' ? 'selected' : '' }}>Admin</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="text-xs text-gray-500 mb-1 block">Status</label>
-                                <select name="status" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600">
-                                    <option value="">All Status</option>
-                                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
-                                    <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="text-xs text-gray-500 mb-1 block">Sort By</label>
-                                <select name="sort" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600">
-                                    <option value="">Newest First</option>
-                                    <option value="name" {{ request('sort') === 'name' ? 'selected' : '' }}>Name A-Z</option>
-                                    <option value="role" {{ request('sort') === 'role' ? 'selected' : '' }}>Role</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between">
-                            <div class="text-sm text-gray-500">
-                                Showing {{ $users->firstItem() ?? 0 }} to {{ $users->lastItem() ?? 0 }} of {{ $users->total() }} users
-                            </div>
-                            <div class="flex gap-2">
-                                <a href="{{ route('users.index') }}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">
-                                    <i class="fa-solid fa-rotate-right mr-1"></i> Reset
-                                </a>
-                                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">
-                                    <i class="fa-solid fa-search mr-1"></i> Search
-                                </button>
-                                <a href="{{ route('users.create') }}" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-sm transition-all">
-                                    <i class="fa-solid fa-plus mr-1"></i> Add User
-                                </a>
-                            </div>
-                        </div>
+                <div class="flex items-center space-x-6">
+                    <a href="/dashboard" class="text-gray-600 hover:text-gray-900 text-sm">Dashboard</a>
+                    <a href="{{ route('books.index') }}" class="text-gray-600 hover:text-gray-900 text-sm">Books</a>
+                    <a href="{{ route('users.index') }}" class="text-blue-600 font-medium text-sm">User Management</a>
+                    <a href="{{ route('users.show', Auth::id()) }}" class="text-gray-600 hover:text-gray-900 text-sm">
+                        <i class="fa-solid fa-user-circle mr-1"></i> {{ Auth::user()->name }}
+                    </a>
+                    <form action="{{ route('logout') }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="text-gray-600 hover:text-gray-900 text-sm">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
+                        </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </nav>
 
-                <!-- Users Table -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-white border-b border-gray-100">
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Student ID</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Joined</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @forelse($users as $user)
-                            <tr class="hover:bg-gray-50 transition-colors group">
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold 
-                                            {{ $user->role === 'Admin' ? 'bg-red-100 text-red-600' : 
-                                               ($user->role === 'Staff' ? 'bg-green-100 text-green-600' : 'bg-indigo-100 text-indigo-600') }}">
-                                            {{ strtoupper(substr($user->name, 0, 2)) }}
-                                        </div>
-                                        <div>
-                                            <p class="font-bold text-gray-900 text-sm">{{ $user->name }}</p>
-                                            <p class="text-xs text-gray-500 mt-0.5">ID: {{ $user->id }}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6 text-sm font-medium text-gray-600">
-                                    {{ $user->email }}
-                                </td>
-                                <td class="py-4 px-6 text-sm text-gray-500 font-mono">
-                                    {{ $user->student_id ?? 'N/A' }}
-                                </td>
-                                <td class="py-4 px-6">
-                                    @if($user->role === 'Admin')
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-                                            <i class="fa-solid fa-shield-halved mr-1"></i> Admin
-                                        </span>
-                                    @elseif($user->role === 'Staff')
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-                                            <i class="fa-solid fa-user-tie mr-1"></i> Staff
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
-                                            <i class="fa-solid fa-user-graduate mr-1"></i> Student
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="py-4 px-6 text-sm text-gray-500">
-                                    {{ $user->created_at->format('M d, Y') }}
-                                </td>
-                                <td class="py-4 px-6 text-right">
-                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <a href="{{ route('users.show', $user) }}" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                                            <i class="fa-solid fa-eye text-xs"></i>
-                                        </a>
-                                        <a href="{{ route('users.edit', $user) }}" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                                            <i class="fa-solid fa-pen text-xs"></i>
-                                        </a>
-                                        @if($user->id !== Auth::id())
-                                        @if($user->trashed() || $user->status === 'Inactive')
-                                            <!-- Activate Button -->
-                                            <form action="{{ route('users.restore', $user->id) }}" method="POST" onsubmit="return confirm('Activate this user?');">
-                                                @csrf
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors" title="Activate User">
-                                                    <i class="fa-solid fa-check text-xs"></i>
-                                                </button>
-                                            </form>
-                                        @else
-                                            <!-- Deactivate Button -->
-                                            <form action="{{ route('users.deactivate', $user) }}" method="POST" onsubmit="return confirm('Deactivate this user?');">
-                                                @csrf @method('DELETE')
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Deactivate User">
-                                                    <i class="fa-solid fa-ban text-xs"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" class="py-12 text-center text-gray-500">
-                                    <i class="fa-solid fa-users text-4xl text-gray-300 mb-4 block"></i>
-                                    <p class="text-lg font-medium">No users found</p>
-                                    <p class="text-sm mt-1">Try adjusting your filters or search terms</p>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="sm:flex sm:items-center sm:justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+                <p class="mt-1 text-sm text-gray-500">Manage system users, roles, and permissions.</p>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ route('users.create') }}" 
+                   class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <i class="fa-solid fa-plus mr-2"></i> Create New User
+                </a>
+            </div>
+        </div>
 
-                <!-- Pagination -->
-                <div class="mt-6">
-                    {{ $users->links() }}
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-blue-100 rounded-md p-3">
+                            <i class="fa-solid fa-users text-blue-600 text-xl"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                                <dd class="text-lg font-bold text-gray-900">{{ $users->total() }}</dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </main>
-    </div>
 
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                            <i class="fa-solid fa-user-graduate text-purple-600 text-xl"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Students</dt>
+                                <dd class="text-lg font-bold text-gray-900">
+                                    {{ App\Models\User::where('role', 'Student')->count() }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                            <i class="fa-solid fa-user-tie text-green-600 text-xl"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Staff</dt>
+                                <dd class="text-lg font-bold text-gray-900">
+                                    {{ App\Models\User::where('role', 'Staff')->count() }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                            <i class="fa-solid fa-check-circle text-green-600 text-xl"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Active</dt>
+                                <dd class="text-lg font-bold text-gray-900">
+                                    {{ App\Models\User::where('status', 'Active')->count() }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if(session('success'))
+            <div class="rounded-md bg-green-50 p-4 mb-6 border-l-4 border-green-400">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fa-solid fa-circle-check text-green-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="rounded-md bg-red-50 p-4 mb-6 border-l-4 border-red-400">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fa-solid fa-circle-xmark text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <div class="relative max-w-xs w-full">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Search users...">
+                </div>
+            </div>
+
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User Info
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Contact
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th scope="col" class="relative px-6 py-3">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($users as $user)
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                    <i class="fa-solid fa-user text-gray-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
+                                    <div class="text-xs text-gray-500">ID: {{ str_pad($user->id, 4, '0', STR_PAD_LEFT) }}</div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ $user->email }}</div>
+                            <div class="text-xs text-gray-500">{{ $user->phone ?? 'No phone' }}</div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if($user->role === 'Admin')
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+                                </span>
+                            @elseif($user->role === 'Staff')
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    <i class="fa-solid fa-user-tie mr-1"></i> Staff
+                                </span>
+                            @else
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    <i class="fa-solid fa-user-graduate mr-1"></i> Student
+                                </span>
+                            @endif
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            @if($user->status === 'Active')
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                            @else
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    Inactive
+                                </span>
+                            @endif
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                            {{ $user->created_at->format('Y-m-d') }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            @if(app(\App\Services\AccessControlService::class)->canViewUser($user))
+                                <a href="{{ route('users.show', $user->id) }}" class="text-blue-600 hover:text-blue-900" title="View">
+                                    <i class="fa-solid fa-eye"></i>
+                                </a>
+                            @endif
+
+                            @if(app(\App\Services\AccessControlService::class)->canEditUser($user))
+                                <a href="{{ route('users.edit', $user->id) }}" class="text-yellow-600 hover:text-yellow-900" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                            @endif
+
+                            @if(app(\App\Services\AccessControlService::class)->canDeactivateUser($user))
+                                @if($user->status === 'Active')
+                                    <form action="{{ route('users.deactivate', $user->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to deactivate this user?')" title="Deactivate">
+                                            <i class="fa-solid fa-ban"></i>
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('users.restore', $user->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-green-600 hover:text-green-900" onclick="return confirm('Are you sure you want to activate this user?')" title="Activate">
+                                            <i class="fa-solid fa-check-circle"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-user-slash text-4xl mb-3 text-gray-300"></i>
+                                <p class="text-lg font-medium">No users found</p>
+                                <p class="text-sm">Get started by adding a new user to the system.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if($users->hasPages())
+            <div class="mt-4">
+                {{ $users->links() }}
+            </div>
+        @endif
+        
+        <div class="mt-4 text-center text-xs text-gray-400">
+            Secure Library Management System &copy; 2025
+        </div>
+
+    </div>
 </body>
 </html>

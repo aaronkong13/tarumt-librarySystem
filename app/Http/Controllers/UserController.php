@@ -8,7 +8,6 @@ use App\Services\InputValidationService;
 use App\Services\AccessControlService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * User Management Controller
@@ -20,50 +19,16 @@ class UserController extends Controller
      * Display a listing of all users (Staff and Admin)
      * Admin is not displayed in the list (super root only manages others)
      */
-    public function index(Request $request)
+    public function index()
     {
         try {
             // Access Control: Only Staff and Admin can view all users
             AccessControlService::authorize('view', 'all_users');
 
-            // Build query
-            $query = User::withTrashed()->where('role', '!=', 'Admin');
-
-            // Search filter
-            if ($request->filled('q')) {
-                $search = $request->q;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
-                });
-            }
-
-            // Role filter
-            if ($request->filled('role')) {
-                $query->where('role', $request->role);
-            }
-
-            // Status filter
-            if ($request->filled('status')) {
-                if ($request->status === 'active') {
-                    $query->where('status', 'Active');
-                } elseif ($request->status === 'inactive') {
-                    $query->where('status', 'Inactive');
-                }
-            }
-
-            // Sorting
-            if ($request->filled('sort')) {
-                if ($request->sort === 'name') {
-                    $query->orderBy('name', 'asc');
-                } elseif ($request->sort === 'role') {
-                    $query->orderBy('role', 'asc');
-                }
-            } else {
-                $query->orderBy('created_at', 'desc');
-            }
-
-            $users = $query->paginate(10);
+            // Exclude Admin from the user list
+            $users = User::withTrashed()
+                ->where('role', '!=', 'Admin')
+                ->paginate(10);
             return view('users.index', compact('users'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -142,45 +107,6 @@ class UserController extends Controller
             return view('users.show', compact('user'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
-        }
-    }
-
-    /**
-     * Show edit form for own profile
-     */
-    public function editProfile()
-    {
-        $user = Auth::user();
-        return view('users.profile-edit', compact('user'));
-    }
-
-    /**
-     * Update own profile
-     */
-    public function updateProfile(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            
-            // Input Validation
-            $validatedData = InputValidationService::validateProfileUpdate(array_merge(
-                $request->all(),
-                ['current_user_id' => $user->id]
-            ));
-
-            // Factory Pattern: Update user
-            UserFactory::update($user, $validatedData);
-
-            return redirect()->route('users.show', $user)
-                ->with('success', 'Profile updated successfully.');
-        } catch (ValidationException $e) {
-            return redirect()->back()
-                ->withErrors($e->validator)
-                ->withInput();
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', $e->getMessage())
-                ->withInput();
         }
     }
 
