@@ -51,10 +51,15 @@ Route::middleware('auth')->group(function () {
     
     // --- Book Management Routes ---
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     Route::get('/books/create', [BookController::class, 'create'])->name('books.create');
     Route::post('/books/store', [BookController::class, 'store'])->name('books.store');
     Route::get('/books', [BookController::class, 'index'])->name('books.index');
 });
+=======
+    Route::resource('books', BookController::class)->except(['show']);
+});
+>>>>>>> Stashed changes
 =======
     Route::resource('books', BookController::class)->except(['show']);
 });

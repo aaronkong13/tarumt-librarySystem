@@ -17,6 +17,9 @@ use App\Services\BookSearch\Strategies\StatusFilter;
 use App\Services\BookSearch\Strategies\YearRangeFilter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 class BookController extends Controller
@@ -32,10 +35,13 @@ class BookController extends Controller
     }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // --- 2. SHOW THE "ADD BOOK" FORM ---
     public function create()
     {
 =======
+=======
+>>>>>>> Stashed changes
     // --- LIST ---
     public function index(Request $request, BookSecurityService $security)
     {
@@ -68,8 +74,12 @@ class BookController extends Controller
     public function store(Request $request, BookSecurityService $security)
     {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         // 1. Simulate a Staff User (For testing)
         $testUser = (object) ['role' => 'staff', 'id' => 1]; 
+=======
+        $security->enforceStaffAccess(Auth::user());
+>>>>>>> Stashed changes
 =======
         $security->enforceStaffAccess(Auth::user());
 >>>>>>> Stashed changes
