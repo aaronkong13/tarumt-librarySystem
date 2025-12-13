@@ -31,6 +31,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
     
+    // --- Profile Routes (Own Profile Only) ---
+    Route::get('/profile/edit', [UserController::class, 'editProfile'])->name('profile.edit');
+    Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+    
     // --- User Management Routes (Staff/Admin Only) ---
     Route::middleware('check.staff')->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -46,7 +50,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.deactivate');
     
     // --- Book Management Routes ---
+<<<<<<< Updated upstream
     Route::get('/books/create', [BookController::class, 'create'])->name('books.create');
     Route::post('/books/store', [BookController::class, 'store'])->name('books.store');
     Route::get('/books', [BookController::class, 'index'])->name('books.index');
 });
+=======
+    Route::resource('books', BookController::class)->except(['show']);
+});
+>>>>>>> Stashed changes

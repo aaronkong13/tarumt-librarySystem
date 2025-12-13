@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create User - BookHub</title>
+    <title>Edit My Profile - BookHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
                 </a>
 
                 @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
-                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
+                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
                     <i class="fa-solid fa-users w-6"></i>
                     <span class="font-medium text-sm">User Management</span>
                 </a>
@@ -82,10 +82,10 @@
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('users.index') }}" class="text-gray-400 hover:text-gray-600">
+                    <a href="{{ route('users.show', Auth::id()) }}" class="text-gray-400 hover:text-gray-600">
                         <i class="fa-solid fa-arrow-left"></i>
                     </a>
-                    <h2 class="text-xl font-bold text-gray-900">Create New User</h2>
+                    <h2 class="text-xl font-bold text-gray-900">Edit My Profile</h2>
                 </div>
             </header>
 
@@ -120,8 +120,9 @@
 
                     <!-- Form Card -->
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                        <form method="POST" action="{{ route('users.store') }}">
+                        <form method="POST" action="{{ route('profile.update') }}">
                             @csrf
+                            @method('PUT')
 
                             <div class="space-y-6">
                                 <!-- Personal Information Section -->
@@ -135,7 +136,7 @@
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                                 Full Name <span class="text-red-500">*</span>
                                             </label>
-                                            <input type="text" name="name" value="{{ old('name') }}" required
+                                            <input type="text" name="name" value="{{ old('name', $user->name) }}" required
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="Enter full name">
                                         </div>
@@ -144,7 +145,7 @@
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                                 Email Address <span class="text-red-500">*</span>
                                             </label>
-                                            <input type="email" name="email" value="{{ old('email') }}" required
+                                            <input type="email" name="email" value="{{ old('email', $user->email) }}" required
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="user@example.com">
                                         </div>
@@ -153,23 +154,17 @@
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                                 Phone Number
                                             </label>
-                                            <input type="text" name="phone" value="{{ old('phone') }}"
+                                            <input type="text" name="phone" value="{{ old('phone', $user->phone) }}"
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="(123) 456-7890">
                                         </div>
 
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Role <span class="text-red-500">*</span>
+                                                Role
                                             </label>
-                                            <select name="role" required
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                                <option value="">Select Role</option>
-                                                <option value="Student" {{ old('role') === 'Student' ? 'selected' : '' }}>Student</option>
-                                                @if(Auth::user()->role === 'Admin')
-                                                <option value="Staff" {{ old('role') === 'Staff' ? 'selected' : '' }}>Staff</option>
-                                                @endif
-                                            </select>
+                                            <input type="text" value="{{ ucfirst($user->role) }}" disabled
+                                                class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500">
                                         </div>
                                     </div>
                                 </div>
@@ -186,7 +181,7 @@
                                         </label>
                                         <textarea name="address" rows="3"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="Enter full address">{{ old('address') }}</textarea>
+                                            placeholder="Enter full address">{{ old('address', $user->address) }}</textarea>
                                     </div>
                                 </div>
 
@@ -194,23 +189,29 @@
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                                         <i class="fa-solid fa-lock text-indigo-600 mr-2"></i>
-                                        Security
+                                        Change Password (Optional)
                                     </h3>
+                                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                        <p class="text-sm text-gray-600">
+                                            <i class="fa-solid fa-info-circle mr-1"></i>
+                                            Leave blank to keep current password
+                                        </p>
+                                    </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Password <span class="text-red-500">*</span>
+                                                New Password
                                             </label>
-                                            <input type="password" name="password" required
+                                            <input type="password" name="password"
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="Min. 8 characters">
                                         </div>
 
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Confirm Password <span class="text-red-500">*</span>
+                                                Confirm New Password
                                             </label>
-                                            <input type="password" name="password_confirmation" required
+                                            <input type="password" name="password_confirmation"
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="Confirm password">
                                         </div>
@@ -220,14 +221,14 @@
 
                             <!-- Action Buttons -->
                             <div class="mt-8 flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-                                <a href="{{ route('users.index') }}" 
+                                <a href="{{ route('users.show', Auth::id()) }}" 
                                     class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
                                     Cancel
                                 </a>
                                 <button type="submit" 
                                     class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors flex items-center gap-2">
-                                    <i class="fa-solid fa-user-plus"></i>
-                                    Create User
+                                    <i class="fa-solid fa-save"></i>
+                                    Update My Profile
                                 </button>
                             </div>
                         </form>

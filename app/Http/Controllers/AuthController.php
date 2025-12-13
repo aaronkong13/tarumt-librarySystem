@@ -7,6 +7,7 @@ use App\Services\InputValidationService;
 use App\Services\AuthenticationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Authentication Controller
@@ -77,7 +78,8 @@ class AuthController extends Controller
             $user = UserFactory::createStudent($validatedData);
 
             // Authentication: Log in the newly registered user
-            auth()->login($user);
+            Auth::login($user);
+            $request->session()->regenerate();
 
             return redirect('/dashboard')
                 ->with('success', 'Registration successful! Welcome to the library system.');
