@@ -35,7 +35,7 @@
 
                 <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
                     <i class="fa-solid fa-book w-6"></i>
-                    <span class="font-medium text-sm">Books</span>
+                    <span class="font-medium text-sm">Books Management</span>
                 </a>
 
                 @if(in_array(Auth::user()->role, ['Staff', 'Admin']))

@@ -30,22 +30,64 @@ class BookController extends Controller
         ]);
     }
 
+    // Centralized category list for the library system
+    private function getCategories()
+    {
+        return [
+            'Computer Science',
+            'Information Technology',
+            'Engineering',
+            'Mathematics',
+            'Physics',
+            'Chemistry',
+            'Biology',
+            'Medicine',
+            'Business Administration',
+            'Economics',
+            'Accounting',
+            'Marketing',
+            'Management',
+            'Law',
+            'Psychology',
+            'Sociology',
+            'Literature',
+            'History',
+            'Philosophy',
+            'Education',
+            'Language & Linguistics',
+            'Art & Design',
+            'Architecture',
+            'Communication',
+            'Research Methods',
+            'Reference Materials',
+            'General Knowledge'
+        ];
+    }
+
     // --- LIST ---
     public function index(Request $request, BookSecurityService $security)
     {
         $security->enforceStaffAccess(Auth::user());
 
         $query = Book::query();
-        $query = $this->searchContext->apply($query, $request);
+        $query = $this->searchContext->apply($query, $request); //here I apply strategy pattern for search/filter/sort , you can ref this
 
         $books = $query
             ->paginate(10)
             ->appends($request->query());
 
+        // AJAX request - return partial view
+        if ($request->ajax()) {
+            return view('books.partials.book-table', [
+                'books' => $books
+            ])->render();
+        }
+
+        // Normal request - return full page
         return view('books.index', [
             'books' => $books,
             'filters' => $request->only(['q', 'status', 'category', 'year_from', 'year_to', 'sort']),
-            'categories' => Book::distinct()->pluck('category')->sort()->values(),
+            'categories' => $this->getCategories(),
         ]);
     }
 
@@ -54,7 +96,9 @@ class BookController extends Controller
     {
         $security->enforceStaffAccess(Auth::user());
 
-        return view('books.create');
+        return view('books.create', [
+            'categories' => $this->getCategories(),
+        ]);
     }
 
     // --- STORE ---
@@ -129,8 +173,9 @@ class BookController extends Controller
         if ($book->status === 'Borrowed') {
             return back()->withErrors(['message' => 'Cannot delete a borrowed book.']);
         }
-
+        
         $book->delete();
+        
 
         return redirect()->route('books.index')->with('success', "$book->title has been removed.");
     }

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         /* Custom scrollbar for sidebar if needed */
@@ -36,16 +37,22 @@
             </div>
 
             <nav class="flex-1 px-4 py-6 space-y-2">
-                
-                <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
-                    <i class="fa-solid fa-book w-6"></i>
-                    <span class="font-medium text-sm">Books</span>
+                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
+                    <i class="fa-solid fa-house w-6"></i>
+                    <span class="font-medium text-sm">Dashboard</span>
                 </a>
 
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-users w-6"></i>
-                    <span class="font-medium text-sm">Members</span>
+                <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
+                    <i class="fa-solid fa-book w-6"></i> <!-- i set this to selected element ah-->
+                    <span class="font-medium text-sm">Books Management</span>
                 </a>
+
+                @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
+                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
+                    <i class="fa-solid fa-users w-6"></i>
+                    <span class="font-medium text-sm">User Management</span>
+                </a>
+                @endif
                 
                 <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
                     <i class="fa-solid fa-chart-simple w-6"></i>
@@ -59,15 +66,23 @@
             </nav>
 
             <div class="p-4 border-t border-gray-800">
-                <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                        JD
+                <a href="{{ route('users.show', Auth::id()) }}" class="block">
+                    <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
+                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
+                            <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
+                        </div>
+                        <form action="{{ route('logout') }}" method="POST" onclick="event.stopPropagation();">
+                            @csrf
+                            <button type="submit" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </button>
+                        </form>
                     </div>
-                    <div>
-                        <p class="text-sm font-semibold">Jane Doe from ZZZ</p>
-                        <p class="text-xs text-gray-400">Staff</p>
-                    </div>
-                </div>
+                </a>
             </div>
         </aside>
 
@@ -77,10 +92,6 @@
                 <h2 class="text-xl font-bold text-gray-900">Book Management</h2>
                 
                 <div class="flex items-center gap-6">
-                    <div class="relative hidden md:block">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
-                        <input type="text" placeholder="Search books..." class="bg-gray-50 border border-gray-200 text-sm rounded-lg pl-10 pr-4 py-2.5 w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
                     <button class="relative p-2 text-gray-400 hover:text-gray-600">
                         <i class="fa-regular fa-bell text-xl"></i>
                         <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -150,44 +161,50 @@
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                    <form method="GET" action="{{ route('books.index') }}" class="space-y-4">
+                    <form method="GET" action="{{ route('books.index') }}" id="searchFilterForm" class="space-y-4">
                         
                         <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
                             <div class="md:col-span-2">
                                 <label class="text-xs text-gray-500 mb-1 block">Search Keyword</label>
-                                <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Title, Author, ISBN..." 
+                                <input name="q" id="searchInput" value="{{ $filters['q'] ?? '' }}" placeholder="Title, Author, ISBN..." 
                                     class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Status</label>
-                                <select name="status" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
-                                    <option value="">All</option>
-                                    @foreach(['Available','Borrowed','Lost','Damaged'] as $s)
-                                        <option value="{{ $s }}" {{ ($filters['status'] ?? '') === $s ? 'selected' : '' }}>{{ $s }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative">
+                                    <select name="status" id="statusFilter" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 pr-10 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
+                                        <option value="">All</option>
+                                        @foreach(['Available','Borrowed','Lost','Damaged'] as $s)
+                                            <option value="{{ $s }}" {{ ($filters['status'] ?? '') === $s ? 'selected' : '' }}>{{ $s }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                                </div>
                             </div>
                             
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Category</label>
-                                <select name="category" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
-                                    <option value="">All Categories</option>
-                                    @foreach($categories as $cat)
-                                        <option value="{{ $cat }}" {{ ($filters['category'] ?? '') === $cat ? 'selected' : '' }}>{{ $cat }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative">
+                                    <select name="category" id="categoryFilter" class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 pr-10 focus:ring-2 focus:ring-indigo-500 text-gray-600 cursor-pointer appearance-none">
+                                        <option value="">All Categories</option>
+                                        @foreach($categories as $cat)
+                                            <option value="{{ $cat }}" {{ ($filters['category'] ?? '') === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                                </div>
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Year From</label>
-                                <input type="number" name="year_from" value="{{ $filters['year_from'] ?? '' }}" placeholder="2000" min="1900" max="2099"
+                                <input type="number" name="year_from" id="yearFrom" value="{{ $filters['year_from'] ?? '' }}" placeholder="2000" min="1900" max="2099"
                                     class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-500 mb-1 block">Year To</label>
-                                <input type="number" name="year_to" value="{{ $filters['year_to'] ?? '' }}" placeholder="2025" min="1900" max="2099"
+                                <input type="number" name="year_to" id="yearTo" value="{{ $filters['year_to'] ?? '' }}" placeholder="2025" min="1900" max="2099"
                                     class="w-full bg-gray-50 border-none text-sm font-medium rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 placeholder-gray-500">
                             </div>
                         </div>
@@ -196,7 +213,7 @@
                             <div class="flex gap-3">
                                 <div class="flex items-center gap-2">
                                     <label class="text-xs text-gray-500">Sort:</label>
-                                    <select name="sort" class="bg-gray-50 border-none text-sm font-medium rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500 text-gray-600">
+                                    <select name="sort" id="sortFilter" class="bg-gray-50 border-none text-sm font-medium rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500 text-gray-600">
                                         <option value="">Newest First</option>
                                         <option value="title" {{ ($filters['sort'] ?? '') === 'title' ? 'selected' : '' }}>Title A-Z</option>
                                         <option value="year" {{ ($filters['sort'] ?? '') === 'year' ? 'selected' : '' }}>Year (Desc)</option>
@@ -219,92 +236,14 @@
                     </form>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-white border-b border-gray-100">
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Book Title</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Author</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">ISBN</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                                <th class="py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @forelse($books as $book)
-                            <tr class="hover:bg-gray-50 transition-colors group">
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold text-indigo-600 bg-indigo-50 overflow-hidden">
-                                            @if($book->cover_image)
-                                                <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}" 
-                                                     class="w-full h-full object-cover book-cover-clickable" 
-                                                     onclick="openImageModal(this.src, '{{ addslashes($book->title) }}')"
-                                                     title="Click to zoom">
-                                            @else
-                                                {{ substr($book->title, 0, 1) }}
-                                            @endif
-                                        </div>
-                                        <div>
-                                            <p class="font-bold text-gray-900 text-sm">{{ $book->title }}</p>
-                                            <p class="text-xs text-gray-500 mt-0.5">{{ $book->year }}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6 text-sm font-medium text-gray-600">
-                                    {{ $book->author }}
-                                </td>
-                                <td class="py-4 px-6 text-sm text-gray-500 font-mono">
-                                    {{ $book->isbn }}
-                                </td>
-                                <td class="py-4 px-6">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
-                                        {{ $book->category }}
-                                    </span>
-                                </td>
-                                <td class="py-4 px-6">
-                                    @if($book->status === 'Available')
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-                                            Available
-                                        </span>
-                                    @elseif($book->status === 'Borrowed')
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                                            Borrowed
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
-                                            {{ $book->status }}
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="py-4 px-6 text-right">
-                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <a href="{{ route('books.edit', $book) }}" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                                            <i class="fa-solid fa-pen text-xs"></i>
-                                        </a>
-                                        <form action="{{ route('books.destroy', $book) }}" method="POST" onsubmit="return confirm('Delete?');">
-                                            @csrf @method('DELETE')
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                                <i class="fa-solid fa-trash text-xs"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" class="py-12 text-center text-gray-500">
-                                    No books found.
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-6">
-                    {{ $books->links() }}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="booksTableContainer">
+                    <div id="loadingOverlay" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-2"></i>
+                            <p class="text-sm text-gray-600">Loading...</p>
+                        </div>
+                    </div>
+                    @include('books.partials.book-table', ['books' => $books])
                 </div>
             </div>
         </main>
@@ -328,6 +267,129 @@
     </div>
 
     <script>
+        // AJAX Search, Filter, and Pagination
+        let debounceTimer;
+        const searchForm = document.getElementById('searchFilterForm');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const yearFrom = document.getElementById('yearFrom');
+        const yearTo = document.getElementById('yearTo');
+        const sortFilter = document.getElementById('sortFilter');
+        const tableContainer = document.getElementById('booksTableContainer');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Debounced search for keyword input
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                performAjaxSearch();
+            }, 500); // 500ms delay
+        });
+
+        // Instant filter on dropdowns and year inputs
+        [statusFilter, categoryFilter, yearFrom, yearTo, sortFilter].forEach(element => {
+            element.addEventListener('change', performAjaxSearch);
+        });
+
+        // Prevent default form submit, use AJAX instead
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            performAjaxSearch();
+        });
+
+        function performAjaxSearch() {
+            const formData = new FormData(searchForm);
+            const params = new URLSearchParams(formData);
+            const url = `{{ route('books.index') }}?${params.toString()}`;
+
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'text/html'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(html => {
+                // Update table content
+                tableContainer.innerHTML = html;
+                
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+
+                // Update URL without reloading page
+                window.history.pushState({}, '', url);
+
+                // Re-attach pagination event listeners
+                attachPaginationListeners();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingOverlay.classList.add('hidden');
+                alert('Failed to load books. Please try again.');
+            });
+        }
+
+        function attachPaginationListeners() {
+            // Find all pagination links
+            const paginationLinks = document.querySelectorAll('#booksTableContainer .pagination a');
+            
+            paginationLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const url = this.getAttribute('href');
+                    
+                    if (!url) return;
+
+                    // Show loading
+                    loadingOverlay.classList.remove('hidden');
+
+                    fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.text();
+                    })
+                    .then(html => {
+                        tableContainer.innerHTML = html;
+                        loadingOverlay.classList.add('hidden');
+                        
+                        // Update URL
+                        window.history.pushState({}, '', url);
+
+                        // Scroll to top of table
+                        tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                        // Re-attach listeners for new pagination links
+                        attachPaginationListeners();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        loadingOverlay.classList.add('hidden');
+                        alert('Failed to load page. Please try again.');
+                    });
+                });
+            });
+        }
+
+        // Initial attachment of pagination listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            attachPaginationListeners();
+        });
+
+        // Image Zoom Modal
         function openImageModal(imageSrc, bookTitle) {
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
@@ -345,12 +407,28 @@
             document.body.style.overflow = 'auto';
         }
 
-        // Close modal with Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeImageModal();
             }
         });
+
+        // Show success popup message on page load
+        @if(session('success'))
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: '{{ session('success') }}',
+                        confirmButtonColor: '#4f46e5',
+                        confirmButtonText: 'OK',
+                        timer: 5000,
+                        timerProgressBar: true,
+                    });
+                }, 100);
+            });
+        @endif
     </script>
 
 </body>
