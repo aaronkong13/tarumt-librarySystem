@@ -74,6 +74,15 @@ class AuthController extends Controller
             // Input Validation
             $validatedData = InputValidationService::validateRegistration($requestData);
 
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                $image = $request->file('profile_image');
+                $request->validate([
+                    'profile_image' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+                ]);
+                $validatedData['profile_image'] = $this->compressImage($image->getRealPath(), 64);
+            }
+
             // Factory Pattern: Create Student user
             $user = UserFactory::createStudent($validatedData);
 
@@ -175,5 +184,88 @@ class AuthController extends Controller
     public function dashboard()
     {
         return view('dashboard');
+    }
+
+    /**
+     * Compress image to fit within specified size limit (in KB)
+     */
+    private function compressImage($imagePath, $maxSizeKB = 64)
+    {
+        // Get image info
+        $imageInfo = getimagesize($imagePath);
+        $mimeType = $imageInfo['mime'];
+        
+        // Create image resource based on type
+        switch ($mimeType) {
+            case 'image/jpeg':
+                $image = imagecreatefromjpeg($imagePath);
+                break;
+            case 'image/png':
+                $image = imagecreatefrompng($imagePath);
+                break;
+            case 'image/gif':
+                $image = imagecreatefromgif($imagePath);
+                break;
+            default:
+                throw new \Exception('Unsupported image type');
+        }
+        
+        $width = imagesx($image);
+        $height = imagesy($image);
+        
+        // Start with reasonable dimensions (max 400x400)
+        $maxDimension = 400;
+        if ($width > $maxDimension || $height > $maxDimension) {
+            if ($width > $height) {
+                $newWidth = $maxDimension;
+                $newHeight = intval($height * ($maxDimension / $width));
+            } else {
+                $newHeight = $maxDimension;
+                $newWidth = intval($width * ($maxDimension / $height));
+            }
+        } else {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+        
+        // Create resized image
+        $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        
+        // Try different quality levels to fit within size limit
+        $quality = 85;
+        $compressed = null;
+        
+        while ($quality > 10) {
+            ob_start();
+            imagejpeg($resizedImage, null, $quality);
+            $compressed = ob_get_clean();
+            
+            $sizeKB = strlen($compressed) / 1024;
+            
+            if ($sizeKB <= $maxSizeKB) {
+                break;
+            }
+            
+            $quality -= 10;
+            
+            // If still too large, reduce dimensions
+            if ($quality <= 20 && $sizeKB > $maxSizeKB) {
+                $newWidth = intval($newWidth * 0.8);
+                $newHeight = intval($newHeight * 0.8);
+                
+                imagedestroy($resizedImage);
+                $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+                imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                
+                $quality = 85;
+            }
+        }
+        
+        // Clean up
+        imagedestroy($image);
+        imagedestroy($resizedImage);
+        
+        return $compressed;
     }
 }

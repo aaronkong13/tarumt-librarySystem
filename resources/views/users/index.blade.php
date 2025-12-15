@@ -111,9 +111,15 @@
             <div class="p-4 border-t border-gray-800">
                 <a href="{{ route('users.show', Auth::id()) }}" class="block">
                     <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                        </div>
+                        @if(Auth::user()->profile_image)
+                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
+                                 alt="{{ Auth::user()->name }}" 
+                                 class="w-10 h-10 rounded-full object-cover">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
+                                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                            </div>
+                        @endif
                         <div class="flex-1">
                             <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
                             <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
@@ -334,8 +340,16 @@
                         <tr class="hover:bg-gray-50 transition-colors duration-150" data-user-id="{{ $user->id }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                        <i class="fa-solid fa-user text-gray-500"></i>
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        @if($user->profile_image)
+                                            <img src="data:image/jpeg;base64,{{ base64_encode($user->profile_image) }}" 
+                                                 alt="{{ $user->name }}" 
+                                                 class="h-10 w-10 rounded-full object-cover">
+                                        @else
+                                            <div class="h-10 w-10 bg-indigo-500 rounded-full flex items-center justify-center">
+                                                <span class="text-white font-semibold text-sm">{{ strtoupper(substr($user->name, 0, 2)) }}</span>
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="ml-4">
                                         <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
@@ -589,8 +603,15 @@
                 <tr class="hover:bg-gray-50 transition-colors duration-150" data-user-id="${user.id}">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                <i class="fa-solid fa-user text-gray-500"></i>
+                            <div class="flex-shrink-0 h-10 w-10">
+                                ${user.profile_image 
+                                    ? `<img src="data:image/jpeg;base64,${user.profile_image}" 
+                                           alt="${user.name}" 
+                                           class="h-10 w-10 rounded-full object-cover">`
+                                    : `<div class="h-10 w-10 bg-indigo-500 rounded-full flex items-center justify-center">
+                                           <span class="text-white font-semibold text-sm">${user.name.substring(0, 2).toUpperCase()}</span>
+                                       </div>`
+                                }
                             </div>
                             <div class="ml-4">
                                 <div class="text-sm font-medium text-gray-900">${user.name}</div>

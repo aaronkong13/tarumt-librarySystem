@@ -37,8 +37,25 @@
             @endif
 
             <div class="bg-white py-8 px-6 shadow rounded-lg">
-                <form method="POST" action="{{ route('register') }}" class="space-y-6">
+                <form method="POST" action="{{ route('register') }}" class="space-y-6" enctype="multipart/form-data">
                     @csrf
+
+                    <!-- Profile Image Upload -->
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="mb-4">
+                            <div id="profilePreview" class="w-24 h-24 rounded-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold border-4 border-blue-600">
+                                <i class="fas fa-user text-4xl text-white"></i>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <label for="profile_image" class="cursor-pointer inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                <i class="fa-solid fa-camera mr-2"></i>
+                                Choose Photo
+                            </label>
+                            <input type="file" id="profile_image" name="profile_image" accept="image/*" class="hidden" onchange="previewImage(event)">
+                            <p class="text-xs text-gray-500 mt-2">Optional - JPG, PNG or GIF (Max 2MB, auto-compressed)</p>
+                        </div>
+                    </div>
 
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
@@ -134,5 +151,20 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('profilePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" class="w-24 h-24 rounded-full object-cover border-4 border-blue-500">`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
 </body>
 </html>
