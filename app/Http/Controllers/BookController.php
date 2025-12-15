@@ -110,8 +110,10 @@ class BookController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'author' => ['required', 'string', 'max:255'],
-            'isbn' => ['required', 'string', 'max:20'],
-            'year' => ['required', 'integer', 'min:0', 'max:3000'],
+            // OWASP 11 (input validation) + 21 (output encoding considerations): enforce unique, bounded length
+            'isbn' => ['required', 'string', 'max:20', 'unique:books,isbn,NULL,bookId'],
+            // Year range tightened to realistic publication years
+            'year' => ['required', 'integer', 'min:1500', 'max:' . (int)date('Y')],
             'category' => ['required', 'string', 'max:100'],
             'status' => ['required', 'in:Available,Borrowed,Lost,Damaged'],
             'cover' => ['nullable', 'file', 'mimes:jpeg,png,gif', 'max:2048'],
@@ -150,8 +152,9 @@ class BookController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'author' => ['required', 'string', 'max:255'],
-            'isbn' => ['required', 'string', 'max:20'],
-            'year' => ['required', 'integer', 'min:0', 'max:3000'],
+            // Unique ISBN excluding current record (bookId)
+            'isbn' => ['required', 'string', 'max:20', 'unique:books,isbn,' . $book->bookId . ',bookId'],
+            'year' => ['required', 'integer', 'min:1500', 'max:' . (int)date('Y')],
             'category' => ['required', 'string', 'max:100'],
             'status' => ['required', 'in:Available,Borrowed,Lost,Damaged'],
             'cover' => ['nullable', 'file', 'mimes:jpeg,png,gif', 'max:2048'],

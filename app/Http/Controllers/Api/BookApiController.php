@@ -95,8 +95,10 @@ class BookApiController extends Controller
             $validated = $request->validate([
                 'title' => ['required', 'string', 'max:255'],
                 'author' => ['required', 'string', 'max:255'],
-                'isbn' => ['required', 'string', 'max:20', 'unique:books'],
-                'year' => ['required', 'integer', 'min:0', 'max:3000'],
+                // Unique ISBN across books
+                'isbn' => ['required', 'string', 'max:20', 'unique:books,isbn,NULL,bookId'],
+                // Realistic publication year range
+                'year' => ['required', 'integer', 'min:1500', 'max:' . (int)date('Y')],
                 'category' => ['required', 'string', 'max:100'],
                 'status' => ['required', 'in:Available,Borrowed,Lost,Damaged'],
                 'cover_image' => ['nullable', 'file', 'mimes:jpeg,png,gif', 'max:2048'],
@@ -155,7 +157,7 @@ class BookApiController extends Controller
                 'title' => ['sometimes', 'string', 'max:255'],
                 'author' => ['sometimes', 'string', 'max:255'],
                 'isbn' => ['sometimes', 'string', 'max:20', 'unique:books,isbn,' . $id . ',bookId'],
-                'year' => ['sometimes', 'integer', 'min:0', 'max:3000'],
+                'year' => ['sometimes', 'integer', 'min:1500', 'max:' . (int)date('Y')],
                 'category' => ['sometimes', 'string', 'max:100'],
                 'status' => ['sometimes', 'in:Available,Borrowed,Lost,Damaged'],
                 'cover_image' => ['nullable', 'file', 'mimes:jpeg,png,gif', 'max:2048'],
