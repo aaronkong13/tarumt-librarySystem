@@ -130,9 +130,31 @@
                         </div>
 
                         <!-- Form Body -->
-                        <form action="{{ route('profile.update') }}" method="POST" class="p-8">
+                        <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="p-8">
                             @csrf
                             @method('PUT')
+
+                            <!-- Profile Image Upload -->
+                            <div class="mb-8 flex flex-col items-center">
+                                <div class="mb-4">
+                                    @if($user->profile_image)
+                                        <img id="profilePreview" src="data:image/jpeg;base64,{{ base64_encode($user->profile_image) }}" 
+                                             alt="Profile" class="w-32 h-32 rounded-full object-cover border-4 border-indigo-500">
+                                    @else
+                                        <div id="profilePreview" class="w-32 h-32 rounded-full bg-indigo-500 flex items-center justify-center text-white text-4xl font-bold border-4 border-indigo-600">
+                                            {{ strtoupper(substr($user->name, 0, 2)) }}
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="text-center">
+                                    <label for="profile_image" class="cursor-pointer inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                        <i class="fa-solid fa-camera mr-2"></i>
+                                        Change Photo
+                                    </label>
+                                    <input type="file" id="profile_image" name="profile_image" accept="image/*" class="hidden" onchange="previewImage(event)">
+                                    <p class="text-xs text-gray-500 mt-2">JPG, PNG or GIF (Max 2MB, auto-compressed)</p>
+                                </div>
+                            </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 
@@ -223,10 +245,6 @@
 
                             <!-- Form Actions -->
                             <div class="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
-                                <a href="{{ route('users.show', $user) }}" 
-                                    class="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors">
-                                    Cancel
-                                </a>
                                 <button type="submit" 
                                     class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
                                     <i class="fa-solid fa-save mr-2"></i>Save Changes
@@ -243,6 +261,20 @@
         </main>
 
     </div>
+
+    <script>
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('profilePreview');
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Profile" class="w-32 h-32 rounded-full object-cover border-4 border-indigo-500">`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
 
 </body>
 </html>

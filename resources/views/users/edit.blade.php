@@ -59,9 +59,15 @@
             <div class="p-4 border-t border-gray-800">
                 <a href="{{ route('users.show', Auth::id()) }}" class="block">
                     <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                        </div>
+                        @if(Auth::user()->profile_image)
+                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
+                                 alt="{{ Auth::user()->name }}" 
+                                 class="w-10 h-10 rounded-full object-cover">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
+                                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                            </div>
+                        @endif
                         <div class="flex-1">
                             <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
                             <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
@@ -82,7 +88,7 @@
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('users.show', $user) }}" class="text-gray-400 hover:text-gray-600">
+                    <a href="{{ route('users.index') }}" class="text-gray-400 hover:text-gray-600">
                         <i class="fa-solid fa-arrow-left"></i>
                     </a>
                     <div>
@@ -123,7 +129,7 @@
 
             <!-- Edit Form -->
             <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                <form method="POST" action="{{ route('users.update', $user) }}">
+                <form method="POST" action="{{ route('users.update', $user) }}" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -133,6 +139,28 @@
                             <i class="fas fa-id-card text-blue-600 mr-2"></i>
                             Basic Information
                         </h2>
+
+                        <!-- Profile Image Upload -->
+                        <div class="mb-8 flex flex-col items-center">
+                            <div class="mb-4" id="profilePreview">
+                                @if($user->profile_image)
+                                    <img src="data:image/jpeg;base64,{{ base64_encode($user->profile_image) }}" 
+                                         alt="Profile" class="w-32 h-32 rounded-full object-cover border-4 border-indigo-500">
+                                @else
+                                    <div class="w-32 h-32 rounded-full bg-indigo-500 flex items-center justify-center text-white text-4xl font-bold border-4 border-indigo-600">
+                                        {{ strtoupper(substr($user->name, 0, 2)) }}
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="text-center">
+                                <label for="profile_image" class="cursor-pointer inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                    <i class="fa-solid fa-camera mr-2"></i>
+                                    Change Photo
+                                </label>
+                                <input type="file" id="profile_image" name="profile_image" accept="image/*" class="hidden" onchange="previewImage(event)">
+                                <p class="text-xs text-gray-500 mt-2">JPG, PNG or GIF (Max 2MB, auto-compressed)</p>
+                            </div>
+                        </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Name -->
@@ -262,15 +290,11 @@
 
                     <!-- Action Buttons -->
                     <div class="p-6 bg-white border-t border-gray-200">
-                        <div class="flex items-center space-x-4">
-                            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
+                        <div class="flex items-center justify-end">
+                            <button type="submit" class="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold shadow-lg flex items-center">
                                 <i class="fas fa-save mr-2"></i>
-                                Update Profile
+                                Update User
                             </button>
-                            <a href="{{ route('users.show', $user) }}" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition flex items-center">
-                                <i class="fas fa-times mr-2"></i>
-                                Cancel
-                            </a>
                         </div>
                     </div>
                 </form>
@@ -281,5 +305,20 @@
         </main>
 
     </div>
+
+    <script>
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('profilePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" class="w-32 h-32 rounded-full object-cover border-4 border-indigo-500">`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
 </body>
 </html>

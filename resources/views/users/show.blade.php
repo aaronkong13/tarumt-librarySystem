@@ -59,9 +59,15 @@
             <div class="p-4 border-t border-gray-800">
                 <a href="{{ route('users.show', Auth::id()) }}" class="block">
                     <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                        </div>
+                        @if(Auth::user()->profile_image)
+                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
+                                 alt="{{ Auth::user()->name }}" 
+                                 class="w-10 h-10 rounded-full object-cover">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
+                                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                            </div>
+                        @endif
                         <div class="flex-1">
                             <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
                             <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
@@ -85,6 +91,7 @@
                     <h2 class="text-xl font-bold text-gray-900">User Profile</h2>
                     <p class="text-sm text-gray-500">View and manage account information</p>
                 </div>
+                <div>
                 @if(Auth::id() === $user->id)
                     <a href="{{ route('profile.edit') }}" 
                        class="inline-flex items-center justify-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
@@ -96,6 +103,7 @@
                         <i class="fa-solid fa-pen-to-square mr-2"></i> Edit User
                     </a>
                 @endif
+                </div>
             </header>
 
     <div class="p-8">
@@ -116,9 +124,15 @@
         <div class="bg-white shadow overflow-hidden sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6 bg-gray-50">
                 <div class="flex items-center">
-                    <div class="flex-shrink-0 h-20 w-20 bg-gray-200 rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-user text-gray-500 text-3xl"></i>
-                    </div>
+                    @if($user->profile_image)
+                        <img src="data:image/jpeg;base64,{{ base64_encode($user->profile_image) }}" 
+                             alt="{{ $user->name }}" 
+                             class="w-32 h-32 rounded-full object-cover border-4 border-indigo-500">
+                    @else
+                        <div class="w-32 h-32 rounded-full bg-indigo-500 flex items-center justify-center text-white text-4xl font-bold border-4 border-indigo-600">
+                            {{ strtoupper(substr($user->name, 0, 2)) }}
+                        </div>
+                    @endif
                     <div class="ml-6">
                         <h3 class="text-lg leading-6 font-medium text-gray-900">{{ $user->name }}</h3>
                         <p class="mt-1 max-w-2xl text-sm text-gray-500">
@@ -209,13 +223,6 @@
                     </div>
                 </dl>
             </div>
-        </div>
-
-        <div class="mt-6 flex justify-between">
-            <a href="{{ url()->previous() }}" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <i class="fa-solid fa-arrow-left mr-2"></i> Back
-            </a>
         </div>
 
         <div class="mt-4 text-center text-xs text-gray-400">

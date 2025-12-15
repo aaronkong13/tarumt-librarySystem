@@ -68,9 +68,15 @@
             <div class="p-4 border-t border-gray-800">
                 <a href="{{ route('users.show', Auth::id()) }}" class="block">
                     <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                        </div>
+                        @if(Auth::user()->profile_image)
+                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
+                                 alt="{{ Auth::user()->name }}" 
+                                 class="w-10 h-10 rounded-full object-cover">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
+                                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                            </div>
+                        @endif
                         <div class="flex-1">
                             <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
                             <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>

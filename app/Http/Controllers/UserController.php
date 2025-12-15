@@ -30,6 +30,11 @@ class UserController extends Controller
             $query = User::withTrashed()
                 ->where('role', '!=', 'Admin');
 
+            // Staff can only view Students
+            if (Auth::user()->isStaff()) {
+                $query->where('role', 'Student');
+            }
+
             // Apply search filter
             if ($request->filled('q')) {
                 $search = $request->q;
@@ -78,6 +83,7 @@ class UserController extends Controller
                             'role' => $user->role,
                             'status' => $user->deleted_at ? 'Inactive' : 'Active',
                             'created_at' => $user->created_at->toISOString(),
+                            'profile_image' => $user->profile_image ? base64_encode($user->profile_image) : null,
                             'can_view' => app(AccessControlService::class)->canViewUser($user),
                             'can_edit' => app(AccessControlService::class)->canEditUser($user),
                             'can_deactivate' => app(AccessControlService::class)->canDeactivateUser($user),
@@ -132,6 +138,15 @@ class UserController extends Controller
 
             // Input Validation
             $validatedData = InputValidationService::validateRegistration($request->all());
+
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                $image = $request->file('profile_image');
+                $request->validate([
+                    'profile_image' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+                ]);
+                $validatedData['profile_image'] = $this->compressImage($image->getRealPath(), 64);
+            }
 
             // Factory Pattern: Create user based on role
             if ($validatedData['role'] === 'Student') {
@@ -211,6 +226,20 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to edit this profile.');
             }
 
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                $image = $request->file('profile_image');
+                
+                // Validate image
+                $request->validate([
+                    'profile_image' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+                ]);
+                
+                // Compress and resize image to fit BLOB (64KB)
+                $imageData = $this->compressImage($image->getRealPath(), 64);
+                $user->profile_image = $imageData;
+            }
+
             // Input Validation
             $validatedData = InputValidationService::validateProfileUpdate(
                 $request->all(),
@@ -219,9 +248,14 @@ class UserController extends Controller
 
             // Factory Pattern: Update user
             UserFactory::update($user, $validatedData);
+            
+            // Save profile image if it was uploaded
+            if ($request->hasFile('profile_image')) {
+                $user->save();
+            }
 
-            return redirect()->route('users.show', $user)
-                ->with('success', 'Profile updated successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User updated successfully.');
         } catch (ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->validator)
@@ -241,14 +275,40 @@ class UserController extends Controller
         try {
             $user = Auth::user();
             
-            // Input Validation
-            $validatedData = InputValidationService::validateProfileUpdate(
-                $request->all(),
-                $user->id
-            );
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                $image = $request->file('profile_image');
+                
+                // Validate image
+                $request->validate([
+                    'profile_image' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+                ]);
+                
+                // Compress and resize image to fit BLOB (64KB)
+                $imageData = $this->compressImage($image->getRealPath(), 64);
+                
+                $user->profile_image = $imageData;
+            }
+            
+            // Validate only the fields that can be updated (not email or role)
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255|min:2',
+                'phone' => 'nullable|string|max:20|regex:/^[0-9\-\+\(\)\s]+$/',
+                'address' => 'nullable|string|max:500',
+                'password' => 'nullable|string|min:8|confirmed',
+            ]);
 
-            // Factory Pattern: Update user
-            UserFactory::update($user, $validatedData);
+            // Update user
+            $user->name = $validatedData['name'];
+            $user->phone = $validatedData['phone'] ?? null;
+            $user->address = $validatedData['address'] ?? null;
+            
+            // Update password if provided
+            if (!empty($validatedData['password'])) {
+                $user->password = bcrypt($validatedData['password']);
+            }
+            
+            $user->save();
 
             return redirect()->route('users.show', $user)
                 ->with('success', 'Profile updated successfully.');
@@ -338,5 +398,88 @@ class UserController extends Controller
             }
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Compress image to fit within specified size limit (in KB)
+     */
+    private function compressImage($imagePath, $maxSizeKB = 64)
+    {
+        // Get image info
+        $imageInfo = getimagesize($imagePath);
+        $mimeType = $imageInfo['mime'];
+        
+        // Create image resource based on type
+        switch ($mimeType) {
+            case 'image/jpeg':
+                $image = imagecreatefromjpeg($imagePath);
+                break;
+            case 'image/png':
+                $image = imagecreatefrompng($imagePath);
+                break;
+            case 'image/gif':
+                $image = imagecreatefromgif($imagePath);
+                break;
+            default:
+                throw new \Exception('Unsupported image type');
+        }
+        
+        $width = imagesx($image);
+        $height = imagesy($image);
+        
+        // Start with reasonable dimensions (max 400x400)
+        $maxDimension = 400;
+        if ($width > $maxDimension || $height > $maxDimension) {
+            if ($width > $height) {
+                $newWidth = $maxDimension;
+                $newHeight = intval($height * ($maxDimension / $width));
+            } else {
+                $newHeight = $maxDimension;
+                $newWidth = intval($width * ($maxDimension / $height));
+            }
+        } else {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+        
+        // Create resized image
+        $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        
+        // Try different quality levels to fit within size limit
+        $quality = 85;
+        $compressed = null;
+        
+        while ($quality > 10) {
+            ob_start();
+            imagejpeg($resizedImage, null, $quality);
+            $compressed = ob_get_clean();
+            
+            $sizeKB = strlen($compressed) / 1024;
+            
+            if ($sizeKB <= $maxSizeKB) {
+                break;
+            }
+            
+            $quality -= 10;
+            
+            // If still too large, reduce dimensions
+            if ($quality <= 20 && $sizeKB > $maxSizeKB) {
+                $newWidth = intval($newWidth * 0.8);
+                $newHeight = intval($newHeight * 0.8);
+                
+                imagedestroy($resizedImage);
+                $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+                imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                
+                $quality = 85;
+            }
+        }
+        
+        // Clean up
+        imagedestroy($image);
+        imagedestroy($resizedImage);
+        
+        return $compressed;
     }
 }
