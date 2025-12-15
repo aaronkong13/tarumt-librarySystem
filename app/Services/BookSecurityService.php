@@ -48,18 +48,21 @@ class BookSecurityService
         // 1. Handling the Title
         if (isset($data['title'])) {
             // OWASP [21]: Contextually sanitize output of un-trusted data.
-            $cleanTitle = strip_tags(trim($data['title']));
+            // Use htmlspecialchars instead of strip_tags to preserve UTF-8
+            $cleanTitle = htmlspecialchars(trim($data['title']), ENT_QUOTES, 'UTF-8');
+            $cleanTitle = html_entity_decode($cleanTitle, ENT_QUOTES, 'UTF-8');
             
-            // Validate length
-            if (strlen($cleanTitle) > 255) {
+            // Validate length using mb_strlen for UTF-8 safe counting
+            if (mb_strlen($cleanTitle, 'UTF-8') > 255) {
                 throw new Exception("Validation Error: Title is too long (Max 255 chars).");
             }
             $sanitized['title'] = $cleanTitle;
         }
 
         if (isset($data['author'])) {
-            $cleanAuthor = strip_tags(trim($data['author']));
-            if ($cleanAuthor === '') {
+            $cleanAuthor = htmlspecialchars(trim($data['author']), ENT_QUOTES, 'UTF-8');
+            $cleanAuthor = html_entity_decode($cleanAuthor, ENT_QUOTES, 'UTF-8');
+            if (trim($cleanAuthor) === '') {
                 throw new Exception("Validation Error: Author is required.");
             }
             $sanitized['author'] = $cleanAuthor;
@@ -71,7 +74,7 @@ class BookSecurityService
             if (!preg_match('/^[0-9-]+$/', $data['isbn'])) {
                 throw new Exception("Validation Error: ISBN contains invalid characters.");
             }
-            $sanitized['isbn'] = $data['isbn'];
+            $sanitized['isbn'] = trim($data['isbn']);
         }
 
         // 3. Handling the Year
@@ -84,8 +87,9 @@ class BookSecurityService
         }
 
         if (isset($data['category'])) {
-            $cleanCategory = strip_tags(trim($data['category']));
-            if ($cleanCategory === '') {
+            $cleanCategory = htmlspecialchars(trim($data['category']), ENT_QUOTES, 'UTF-8');
+            $cleanCategory = html_entity_decode($cleanCategory, ENT_QUOTES, 'UTF-8');
+            if (trim($cleanCategory) === '') {
                 throw new Exception("Validation Error: Category is required.");
             }
             $sanitized['category'] = $cleanCategory;

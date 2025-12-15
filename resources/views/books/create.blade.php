@@ -44,7 +44,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('books.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <form action="{{ route('books.store') }}" method="POST" enctype="multipart/form-data" charset="UTF-8" class="space-y-6">
                 @csrf
                 
                 <div>
@@ -81,9 +81,15 @@
                     <div>
                         <label class="block mb-2 text-sm font-bold text-gray-900">Category</label>
                         <div class="relative">
-                            <input type="text" name="category" value="{{ old('category') }}" 
-                                class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block p-3.5 outline-none transition-all" 
-                                placeholder="Fiction" required>
+                            <select name="category" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block p-3.5 appearance-none cursor-pointer outline-none transition-all" required>
+                                <option value="">Select a category</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat }}" {{ old('category') === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
                         </div>
                     </div>
                     <div>

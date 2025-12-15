@@ -49,6 +49,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.deactivate');
     
-    // --- Book Management Routes ---
-    Route::resource('books', BookController::class)->except(['show']);
+    // --- Book Management Routes---
+    Route::middleware('check.staff')->group(function () {
+        Route::get('/books', [BookController::class, 'index'])->name('books.index');
+        Route::get('/books/create', [BookController::class, 'create'])->name('books.create');
+        Route::post('/books', [BookController::class, 'store'])->name('books.store');
+        Route::get('/books/{book}/edit', [BookController::class, 'edit'])->name('books.edit');
+        Route::put('/books/{book}', [BookController::class, 'update'])->name('books.update');
+        Route::delete('/books/{book}', [BookController::class, 'destroy'])->name('books.destroy');
+    });
 });
