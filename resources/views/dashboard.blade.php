@@ -38,13 +38,18 @@
                     <span class="font-medium text-sm">Books Management</span>
                 </a>
 
+                <a href="{{ route('borrowings.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
+                    <i class="fa-solid fa-hand-holding w-6"></i>
+                    <span class="font-medium text-sm">Borrow & Return</span>
+                </a>
+
                 @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
                 <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
                     <i class="fa-solid fa-users w-6"></i>
                     <span class="font-medium text-sm">User Management</span>
                 </a>
                 @endif
-                
+
                 <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
                     <i class="fa-solid fa-chart-simple w-6"></i>
                     <span class="font-medium text-sm">Reports</span>
@@ -60,8 +65,8 @@
                 <a href="{{ route('users.show', Auth::id()) }}" class="block">
                     <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
                         @if(Auth::user()->profile_image)
-                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
-                                 alt="{{ Auth::user()->name }}" 
+                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}"
+                                 alt="{{ Auth::user()->name }}"
                                  class="w-10 h-10 rounded-full object-cover">
                         @else
                             <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
@@ -84,7 +89,7 @@
         </aside>
 
         <main class="flex-1 md:ml-64 relative">
-            
+
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
                 <div>
@@ -95,7 +100,7 @@
 
             <!-- Main Content -->
             <div class="p-8">
-        
+
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
             <!-- My Profile Card -->
             <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200">
@@ -110,7 +115,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="{{ route('users.show', Auth::id()) }}" 
+                        <a href="{{ route('users.show', Auth::id()) }}"
                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 w-full justify-center">
                             View Profile <i class="fa-solid fa-arrow-right ml-2"></i>
                         </a>
@@ -131,7 +136,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="{{ route('books.index') }}" 
+                        <a href="{{ route('books.index') }}"
                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 w-full justify-center">
                             View Books <i class="fa-solid fa-arrow-right ml-2"></i>
                         </a>
@@ -153,7 +158,7 @@
                             </div>
                         </div>
                         <div class="mt-4">
-                            <a href="{{ route('users.index') }}" 
+                            <a href="{{ route('users.index') }}"
                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 w-full justify-center">
                                 Manage Users <i class="fa-solid fa-arrow-right ml-2"></i>
                             </a>

@@ -1,0 +1,259 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\BorrowingService;
+use Illuminate\Http\Request;
+use Exception;
+
+class BorrowingController extends Controller
+{
+    protected $borrowingService;
+
+    public function __construct(BorrowingService $borrowingService)
+    {
+        $this->borrowingService = $borrowingService;
+    }
+
+    /**
+     * Show borrowing page
+     */
+    public function index()
+    {
+        return view('borrowings.index');
+    }
+
+    /**
+     * Borrow a book
+     */
+    public function borrow(Request $request)
+    {
+        $request->validate([
+            'book_id' => 'required|exists:books,bookId',
+            'duration_days' => 'nullable|integer|min:1|max:30',
+        ]);
+
+        try {
+            $borrowing = $this->borrowingService->borrowBook(
+                auth()->id(),
+                $request->book_id,
+                $request->duration_days ?? 14
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Book borrowed successfully',
+                    'data' => $borrowing,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Book borrowed successfully! Due date: ' . $borrowing->due_date->format('M d, Y'));
+        } catch (Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Return a book
+     */
+    public function return(Request $request, $borrowingId)
+    {
+        try {
+            $borrowing = $this->borrowingService->returnBook($borrowingId);
+
+            $message = 'Book returned successfully!';
+            if ($borrowing->fine_amount > 0) {
+                $message .= ' Fine amount: $' . number_format($borrowing->fine_amount, 2);
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'data' => $borrowing,
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Reserve a book
+     */
+    public function reserve(Request $request)
+    {
+        $reqif ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Book reserved successfully',
+                    'data' => $reservation,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Book reserved successfully! Expires: ' . $reservation->expiry_date->format('M d, Y'));
+        } catch (Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage()equest->expiry_days ?? 3
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book reserved successfully',
+                'data' => $reservation,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Cancel reservation
+     */
+    public function cancelReservation(Request $request, $reservationId)
+    {
+        try {
+            $reservation = $this->borrowingService->cancelReservation($reservationId);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservation cancelled successfully',
+                    'data' => $reservation,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Reservation cancelled successfully!');
+        } catch (Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Get my borrowing history
+     */
+    public function myBorrowings()
+    {
+        $borrowings = $this->borrowingService->getUserBorrowingHistory(auth()->id());
+
+        return response()->json([
+            'success' => true,
+            'data' => $borrowings,
+        ]);
+    }
+
+    /**
+     * Get my active borrowings
+     */
+    public function myActiveBorrowings()
+    {
+        $borrowings = $this->borrowingService->getUserActiveBorrowings(auth()->id());
+
+        return response()->json([
+            'success' => true,
+            'data' => $borrowings,
+        ]);
+    }
+
+    /**
+     * Renew a borrowing
+     */
+    public function renew($borrowingId, Request $request)
+    {
+        $request->validate([
+            'additional_days' => 'nullable|integer|min:1|max:14',
+        ]);if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Borrowing renewed successfully',
+                    'data' => $borrowing,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Borrowing renewed! New due date: ' . $borrowing->due_date->format('M d, Y'));
+        } catch (Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage()uccess' => true,
+                'message' => 'Borrowing renewed successfully',
+                'data' => $borrowing,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Check book availability
+     */
+    public function checkAvailability($bookId)
+    {
+        try {
+            $availability = $this->borrowingService->getBookAvailability($bookId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $availability,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Admin: Get all overdue borrowings
+     */
+    public function overdueList()
+    {
+        $overdue = $this->borrowingService->getOverdueBorrowings();
+
+        return response()->json([
+            'success' => true,
+            'data' => $overdue,
+        ]);
+    }
+}

@@ -83,5 +83,43 @@ class User extends Authenticatable
     {
         return $this->status === 'Active';
     }
+
+    // Relationships
+    public function borrowings()
+    {
+        return $this->hasMany(Borrowing::class);
+    }
+
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class);
+    }
+
+    public function fines()
+    {
+        return $this->hasMany(Fine::class);
+    }
+
+    public function activeBorrowings()
+    {
+        return $this->hasMany(Borrowing::class)->where('status', 'borrowed');
+    }
+
+    public function activeReservations()
+    {
+        return $this->hasMany(Reservation::class)
+            ->where('status', 'active')
+            ->where('expiry_date', '>=', now());
+    }
+
+    public function unpaidFines()
+    {
+        return $this->hasMany(Fine::class)->where('status', 'unpaid');
+    }
+
+    public function getTotalUnpaidFines()
+    {
+        return $this->unpaidFines()->sum('amount');
+    }
 }
 

@@ -16,8 +16,8 @@
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold text-indigo-600 bg-indigo-50 overflow-hidden">
                         @if($book->cover_image)
-                            <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}" 
-                                 class="w-full h-full object-cover book-cover-clickable" 
+                            <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}"
+                                 class="w-full h-full object-cover book-cover-clickable"
                                  onclick="openImageModal(this.src, '{{ addslashes($book->title) }}')"
                                  title="Click to zoom">
                         @else
@@ -58,6 +58,9 @@
             </td>
             <td class="py-4 px-6 text-right">
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="openAssignModal({{ $book->bookId }}, '{{ addslashes($book->title) }}', '{{ $book->author }}', '{{ $book->isbn }}', '{{ $book->category }}', '{{ $book->status }}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Assign Book">
+                        <i class="fa-solid fa-user-plus text-xs"></i>
+                    </button>
                     <a href="{{ route('books.edit', $book) }}" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                         <i class="fa-solid fa-pen text-xs"></i>
                     </a>
@@ -83,3 +86,234 @@
 <div class="mt-6 pagination">
     {{ $books->links() }}
 </div>
+
+<!-- Assign Book Modal -->
+<div id="assignModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900">Assign Book</h3>
+                <button onclick="closeAssignModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Book Details -->
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h4 class="text-sm font-bold text-gray-500 uppercase mb-3">Book Details</h4>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Title:</span>
+                        <span class="text-sm font-medium text-gray-900" id="modalBookTitle"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Author:</span>
+                        <span class="text-sm font-medium text-gray-900" id="modalBookAuthor"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">ISBN:</span>
+                        <span class="text-sm font-medium font-mono text-gray-900" id="modalBookISBN"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Category:</span>
+                        <span class="text-sm font-medium text-gray-900" id="modalBookCategory"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Status:</span>
+                        <span class="text-sm font-bold" id="modalBookStatus"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assignment Form -->
+            <form id="assignForm" onsubmit="submitAssignment(event)">
+                <input type="hidden" id="assignBookId" name="book_id">
+
+                <!-- User ID Input -->
+                <div class="mb-4">
+                    <label for="userId" class="block text-sm font-medium text-gray-700 mb-2">
+                        User ID <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="userId" name="user_id" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Enter user ID">
+                </div>
+
+                <!-- Action Type -->
+                <div class="mb-4" id="actionTypeContainer">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Action <span class="text-red-500">*</span>
+                    </label>
+                    <div class="space-y-2" id="actionOptions">
+                        <!-- Dynamic options will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Days Selection -->
+                <div class="mb-6">
+                    <label for="days" class="block text-sm font-medium text-gray-700 mb-2">
+                        Number of Days <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" id="days" name="days" required min="1" max="7" value="7"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Maximum 7 days">
+                    <p class="text-xs text-gray-500 mt-1">Maximum 7 days allowed</p>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeAssignModal()"
+                        class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                        Assign Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentBookStatus = '';
+
+function openAssignModal(bookId, title, author, isbn, category, status) {
+    currentBookStatus = status;
+
+    // Set book details
+    document.getElementById('modalBookTitle').textContent = title;
+    document.getElementById('modalBookAuthor').textContent = author;
+    document.getElementById('modalBookISBN').textContent = isbn;
+    document.getElementById('modalBookCategory').textContent = category;
+
+    // Set status with color
+    const statusElement = document.getElementById('modalBookStatus');
+    statusElement.textContent = status;
+    statusElement.className = 'text-sm font-bold';
+
+    if (status === 'Available') {
+        statusElement.classList.add('text-green-700');
+    } else if (status === 'Borrowed') {
+        statusElement.classList.add('text-amber-700');
+    } else {
+        statusElement.classList.add('text-red-700');
+    }
+
+    // Set book ID
+    document.getElementById('assignBookId').value = bookId;
+
+    // Reset form
+    document.getElementById('assignForm').reset();
+    document.getElementById('assignBookId').value = bookId;
+
+    // Set action options based on status
+    const actionOptions = document.getElementById('actionOptions');
+    actionOptions.innerHTML = '';
+
+    if (status === 'Available') {
+        // Can book or reserve
+        actionOptions.innerHTML = `
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="action" value="book" required class="w-4 h-4 text-indigo-600">
+                <span class="ml-3 text-sm font-medium text-gray-900">Book</span>
+            </label>
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="action" value="reserve" class="w-4 h-4 text-indigo-600">
+                <span class="ml-3 text-sm font-medium text-gray-900">Reserve</span>
+            </label>
+        `;
+    } else if (status === 'Borrowed') {
+        // Can only reserve
+        actionOptions.innerHTML = `
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer bg-gray-50">
+                <input type="radio" name="action" value="reserve" required checked class="w-4 h-4 text-indigo-600">
+                <span class="ml-3 text-sm font-medium text-gray-900">Reserve Only</span>
+            </label>
+            <p class="text-xs text-amber-600 mt-2">This book is currently borrowed. You can only reserve it.</p>
+        `;
+    } else if (status === 'Reserved') {
+        // Choose available or booked
+        actionOptions.innerHTML = `
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="action" value="available" required class="w-4 h-4 text-indigo-600">
+                <span class="ml-3 text-sm font-medium text-gray-900">Mark as Available</span>
+            </label>
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="action" value="book" class="w-4 h-4 text-indigo-600">
+                <span class="ml-3 text-sm font-medium text-gray-900">Book (Convert Reservation)</span>
+            </label>
+            <p class="text-xs text-blue-600 mt-2">This book is reserved. You can mark it available or convert to a booking.</p>
+        `;
+    }
+
+    // Show modal
+    document.getElementById('assignModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAssignModal() {
+    document.getElementById('assignModal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function submitAssignment(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        book_id: formData.get('book_id'),
+        user_id: formData.get('user_id'),
+        action: formData.get('action'),
+        days: formData.get('days')
+    };
+
+    // Validate days
+    if (data.days < 1 || data.days > 7) {
+        alert('Number of days must be between 1 and 7');
+        return;
+    }
+
+    // Here you would send the data to your backend
+    console.log('Assignment data:', data);
+
+    // TODO: Replace with actual API call
+    // Example:
+    // fetch('/api/books/assign', {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json',
+    //         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    //     },
+    //     body: JSON.stringify(data)
+    // })
+    // .then(response => response.json())
+    // .then(result => {
+    //     if (result.success) {
+    //         alert('Book assigned successfully!');
+    //         closeAssignModal();
+    //         location.reload(); // Reload to show updated status
+    //     } else {
+    //         alert('Error: ' + result.message);
+    //     }
+    // })
+    // .catch(error => {
+    //     console.error('Error:', error);
+    //     alert('An error occurred while assigning the book');
+    // });
+
+    // Temporary success message
+    alert(`Book will be ${data.action === 'book' ? 'booked' : data.action === 'reserve' ? 'reserved' : 'marked as available'} for user ${data.user_id} for ${data.days} day(s)`);
+    closeAssignModal();
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('assignModal');
+    if (event.target === modal) {
+        closeAssignModal();
+    }
+});
+</script>
