@@ -20,18 +20,81 @@ class UserController extends Controller
      * Display a listing of all users (Staff and Admin)
      * Admin is not displayed in the list (super root only manages others)
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             // Access Control: Only Staff and Admin can view all users
             AccessControlService::authorize('view', 'all_users');
 
-            // Exclude Admin from the user list
-            $users = User::withTrashed()
-                ->where('role', '!=', 'Admin')
-                ->paginate(10);
+            // Build query
+            $query = User::withTrashed()
+                ->where('role', '!=', 'Admin');
+
+            // Apply search filter
+            if ($request->filled('q')) {
+                $search = $request->q;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            // Apply role filter
+            if ($request->filled('role')) {
+                $query->where('role', $request->role);
+            }
+
+            // Apply status filter
+            if ($request->filled('status')) {
+                if ($request->status === 'Active') {
+                    $query->whereNull('deleted_at');
+                } else {
+                    $query->whereNotNull('deleted_at');
+                }
+            }
+
+            // Apply sorting
+            $sortBy = $request->get('sort', 'name');
+            if ($sortBy === 'name') {
+                $query->orderBy('name', 'asc');
+            } elseif ($sortBy === 'role') {
+                $query->orderBy('role', 'asc');
+            } elseif ($sortBy === 'created_at') {
+                $query->orderBy('created_at', 'desc');
+            }
+
+            // Paginate results
+            $users = $query->paginate(10);
+
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'users' => $users->map(function($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'phone' => $user->phone,
+                            'role' => $user->role,
+                            'status' => $user->deleted_at ? 'Inactive' : 'Active',
+                            'created_at' => $user->created_at->toISOString(),
+                            'can_view' => app(AccessControlService::class)->canViewUser($user),
+                            'can_edit' => app(AccessControlService::class)->canEditUser($user),
+                            'can_deactivate' => app(AccessControlService::class)->canDeactivateUser($user),
+                        ];
+                    }),
+                    'total' => $users->total(),
+                    'per_page' => $users->perPage(),
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                ]);
+            }
+
             return view('users.index', compact('users'));
         } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
@@ -203,7 +266,7 @@ class UserController extends Controller
     /**
      * Deactivate the specified user (soft delete)
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
         try {
             // Access Control: Check if user can deactivate
@@ -214,9 +277,27 @@ class UserController extends Controller
             // Factory Pattern: Deactivate user
             UserFactory::deactivate($user);
 
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'User deactivated successfully.',
+                    'user' => [
+                        'id' => $user->id,
+                        'status' => 'Inactive'
+                    ]
+                ]);
+            }
+
             return redirect()->route('users.index')
                 ->with('success', 'User deactivated successfully.');
         } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 400);
+            }
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
@@ -224,7 +305,7 @@ class UserController extends Controller
     /**
      * Restore a deactivated user
      */
-    public function restore($id)
+    public function restore(Request $request, $id)
     {
         try {
             // Access Control: Only Staff can restore users
@@ -234,9 +315,27 @@ class UserController extends Controller
             $user->restore();
             UserFactory::activate($user);
 
+            // Return JSON for AJAX requests
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'User activated successfully.',
+                    'user' => [
+                        'id' => $user->id,
+                        'status' => 'Active'
+                    ]
+                ]);
+            }
+
             return redirect()->route('users.index')
                 ->with('success', 'User activated successfully.');
         } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 400);
+            }
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
