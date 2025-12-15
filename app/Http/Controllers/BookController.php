@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Book;
-use App\Services\BookSecurityService; 
+use App\Services\BookSecurityService;
+use App\Services\BookService;
 use App\Services\BookSearch\BookSearchContext;
 use App\Services\BookSearch\Strategies\CategoryFilter;
 use App\Services\BookSearch\Strategies\KeywordFilter;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 
 class BookController extends Controller
 {
+    private BookService $bookService;
     private BookSearchContext $searchContext;
 
     public function __construct()
@@ -28,6 +30,9 @@ class BookController extends Controller
             new YearRangeFilter(),
             new SortStrategy(),
         ]);
+
+        // Inject BookService for data access layer
+        $this->bookService = new BookService($this->searchContext);
     }
 
     // Centralized category list for the library system
@@ -69,12 +74,8 @@ class BookController extends Controller
     {
         $security->enforceStaffAccess(Auth::user());
 
-        $query = Book::query();
-        $query = $this->searchContext->apply($query, $request); //here I apply strategy pattern for search/filter/sort , you can ref this
-
-        $books = $query
-            ->paginate(10)
-            ->appends($request->query());
+        // Use BookService to get filtered books from database
+        $books = $this->bookService->getFilteredBooks($request, 10);
 
         // AJAX request - return partial view
         if ($request->ajax()) {
@@ -124,7 +125,8 @@ class BookController extends Controller
             $cleanData['cover_image'] = file_get_contents($request->file('cover')->getRealPath());
         }
 
-        Book::create($cleanData);
+        // Use BookService to create book in database
+        $this->bookService->createBook($cleanData);
 
         return redirect()->route('books.index')->with('success', 'Book added securely.');
     }
@@ -134,7 +136,10 @@ class BookController extends Controller
     {
         $security->enforceStaffAccess(Auth::user());
 
-        return view('books.edit', compact('book'));
+        return view('books.edit', [
+            'book' => $book,
+            'categories' => $this->getCategories(),
+        ]);
     }
 
     // --- UPDATE ---
@@ -160,7 +165,8 @@ class BookController extends Controller
             $cleanData['cover_image'] = file_get_contents($request->file('cover')->getRealPath());
         }
 
-        $book->update($cleanData);
+        // Use BookService to update book in database
+        $this->bookService->updateBook($book->bookId, $cleanData);
 
         return redirect()->route('books.index')->with('success', 'Book updated.');
     }
@@ -174,9 +180,10 @@ class BookController extends Controller
             return back()->withErrors(['message' => 'Cannot delete a borrowed book.']);
         }
         
-        $book->delete();
-        
+        $title = $book->title;
+        // Use BookService to delete book from database
+        $this->bookService->deleteBook($book->bookId);
 
-        return redirect()->route('books.index')->with('success', "$book->title has been removed.");
+        return redirect()->route('books.index')->with('success', "$title has been removed.");
     }
 }
