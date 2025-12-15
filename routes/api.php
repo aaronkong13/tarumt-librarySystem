@@ -1,0 +1,102 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\BookApiController;
+use App\Http\Controllers\Api\UserApiController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group.
+|
+| REST API Endpoints for Book and User modules
+| Can be consumed by external applications, mobile apps, or frontend frameworks
+|
+*/
+
+Route::middleware('api')->group(function () {
+
+    // =====================================================================
+    // BOOK API ENDPOINTS (REST)
+    // =====================================================================
+    
+    Route::prefix('books')->group(function () {
+        
+        // List all books with filtering
+        Route::get('/', [BookApiController::class, 'index'])
+            ->name('api.books.index');
+        
+        // Get single book by ID
+        Route::get('/{id}', [BookApiController::class, 'show'])
+            ->name('api.books.show');
+        
+        // Create a new book
+        Route::post('/', [BookApiController::class, 'store'])
+            ->name('api.books.store');
+        
+        // Update a book
+        Route::put('/{id}', [BookApiController::class, 'update'])
+            ->name('api.books.update');
+        
+        // Delete a book
+        Route::delete('/{id}', [BookApiController::class, 'destroy'])
+            ->name('api.books.destroy');
+        
+        // Get books by status
+        Route::get('/status/{status}', [BookApiController::class, 'getByStatus'])
+            ->name('api.books.status');
+        
+        // Get books by category
+        Route::get('/category/{category}', [BookApiController::class, 'getByCategory'])
+            ->name('api.books.category');
+        
+        // Get book statistics
+        Route::get('/stats/overview', [BookApiController::class, 'stats'])
+            ->name('api.books.stats');
+    });
+
+    // =====================================================================
+    // USER API ENDPOINTS (REST)
+    // =====================================================================
+    
+    Route::prefix('users')->group(function () {
+        
+        // List all users with pagination
+        Route::get('/', [UserApiController::class, 'index'])
+            ->name('api.users.index');
+        
+        // Get single user by ID
+        Route::get('/{id}', [UserApiController::class, 'show'])
+            ->name('api.users.show');
+        
+        // Create a new user
+        Route::post('/', [UserApiController::class, 'store'])
+            ->name('api.users.store');
+        
+        // Update a user
+        Route::put('/{id}', [UserApiController::class, 'update'])
+            ->name('api.users.update');
+        
+        // Delete a user
+        Route::delete('/{id}', [UserApiController::class, 'destroy'])
+            ->name('api.users.destroy');
+        
+        // Get users by role
+        Route::get('/role/{role}', [UserApiController::class, 'getByRole'])
+            ->name('api.users.role');
+        
+        // Search users by name or email
+        Route::get('/search/query', [UserApiController::class, 'search'])
+            ->name('api.users.search');
+        
+        // Get user statistics
+        Route::get('/stats/overview', [UserApiController::class, 'stats'])
+            ->name('api.users.stats');
+    });
+
+});
