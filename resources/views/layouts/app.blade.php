@@ -21,6 +21,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('books.index') }}">Books</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('borrowings.index') }}">
+                            <i class="bi bi-book"></i> Borrow & Return
+                        </a>
+                    </li>
                     @if(Auth::user()->isStaff() || Auth::user()->isAdmin())
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('users.index') }}">User Management</a>

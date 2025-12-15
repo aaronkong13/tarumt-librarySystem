@@ -38,4 +38,40 @@ class Book extends Model
     protected $casts = [
         'year' => 'integer',
     ];
+
+    // Relationships
+    public function borrowings()
+    {
+        return $this->hasMany(Borrowing::class, 'book_id', 'bookId');
+    }
+
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class, 'book_id', 'bookId');
+    }
+
+    public function activeBorrowing()
+    {
+        return $this->hasOne(Borrowing::class, 'book_id', 'bookId')
+            ->where('status', 'borrowed')
+            ->latest();
+    }
+
+    public function activeReservations()
+    {
+        return $this->hasMany(Reservation::class, 'book_id', 'bookId')
+            ->where('status', 'active')
+            ->where('expiry_date', '>=', now());
+    }
+
+    // Helper methods
+    public function isAvailable()
+    {
+        return $this->status === 'Available' && !$this->activeBorrowing;
+    }
+
+    public function isBorrowed()
+    {
+        return $this->activeBorrowing()->exists();
+    }
 }
