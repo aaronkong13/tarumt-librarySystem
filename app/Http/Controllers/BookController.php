@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Services\BookSecurityService;
 use App\Services\BookService;
+use App\Services\BorrowingService;
 use App\Services\BookSearch\BookSearchContext;
 use App\Services\BookSearch\Strategies\CategoryFilter;
 use App\Services\BookSearch\Strategies\KeywordFilter;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 class BookController extends Controller
 {
     private BookService $bookService;
+    private BorrowingService $borrowingService;
     private BookSearchContext $searchContext;
 
     public function __construct()
@@ -31,8 +33,9 @@ class BookController extends Controller
             new SortStrategy(),
         ]);
 
-        // Inject BookService for data access layer
+        // Inject services
         $this->bookService = new BookService($this->searchContext);
+        $this->borrowingService = new BorrowingService();
     }
 
     // Centralized category list for the library system
@@ -79,12 +82,24 @@ class BookController extends Controller
 
         // AJAX request - return partial view (layouts.book-table)
         if ($request->ajax()) {
+            // Augment each book with borrowing stats
+            $books->getCollection()->transform(function($book) {
+                $book->borrowing_stats = $this->borrowingService->getBookBorrowingStats($book->bookId);
+                return $book;
+            });
+
             return view('layouts.book-table', [
                 'books' => $books
             ])->render();
         }
 
         // Normal request - return full page
+        // Augment each book with borrowing stats
+        $books->getCollection()->transform(function($book) {
+            $book->borrowing_stats = $this->borrowingService->getBookBorrowingStats($book->bookId);
+            return $book;
+        });
+
         return view('books.index', [
             'books' => $books,
             'filters' => $request->only(['q', 'status', 'category', 'year_from', 'year_to', 'sort']),

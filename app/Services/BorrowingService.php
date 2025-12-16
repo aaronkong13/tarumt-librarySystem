@@ -396,4 +396,36 @@ class BorrowingService
             'reservation_queue' => $book->activeReservations,
         ];
     }
+
+    /**
+     * Get borrowing history for a specific book
+     */
+    public function getBookBorrowingHistory($bookId)
+    {
+        return Borrowing::where('book_id', $bookId)
+            ->with(['user'])
+            ->orderBy('borrow_date', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get borrowing stats for a specific book
+     */
+    public function getBookBorrowingStats($bookId)
+    {
+        $totalBorrows = Borrowing::where('book_id', $bookId)->count();
+        $completedBorrows = Borrowing::where('book_id', $bookId)->where('status', 'returned')->count();
+        $currentlyBorrowed = Borrowing::where('book_id', $bookId)->where('status', 'borrowed')->count();
+        $uniqueBorrowers = Borrowing::where('book_id', $bookId)
+            ->distinct('user_id')
+            ->count('user_id');
+
+        return [
+            'total_borrows' => $totalBorrows,
+            'completed_borrows' => $completedBorrows,
+            'currently_borrowed' => $currentlyBorrowed,
+            'unique_borrowers' => $uniqueBorrowers,
+            'history' => $this->getBookBorrowingHistory($bookId),
+        ];
+    }
 }

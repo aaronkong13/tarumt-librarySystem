@@ -19,7 +19,7 @@ use App\Http\Controllers\Api\UserApiController;
 |
 */
 
-Route::middleware('api')->group(function () {
+Route::middleware(['web'])->group(function () {
 
     // =====================================================================
     // BOOK API ENDPOINTS (REST)
@@ -30,6 +30,22 @@ Route::middleware('api')->group(function () {
         // List all books with filtering
         Route::get('/', [BookApiController::class, 'index'])
             ->name('api.books.index');
+        
+        // Get books by status
+        Route::get('/status/{status}', [BookApiController::class, 'getByStatus'])
+            ->name('api.books.status');
+        
+        // Get books by category
+        Route::get('/category/{category}', [BookApiController::class, 'getByCategory'])
+            ->name('api.books.category');
+        
+        // Get book statistics
+        Route::get('/stats/overview', [BookApiController::class, 'stats'])
+            ->name('api.books.stats');
+
+        // Get borrowing history for a book (must come before /{id})
+        Route::get('/{id}/borrowing-history', [BookApiController::class, 'borrowingHistory'])
+            ->name('api.books.borrowing-history');
         
         // Get single book by ID
         Route::get('/{id}', [BookApiController::class, 'show'])
@@ -46,18 +62,6 @@ Route::middleware('api')->group(function () {
         // Delete a book
         Route::delete('/{id}', [BookApiController::class, 'destroy'])
             ->name('api.books.destroy');
-        
-        // Get books by status
-        Route::get('/status/{status}', [BookApiController::class, 'getByStatus'])
-            ->name('api.books.status');
-        
-        // Get books by category
-        Route::get('/category/{category}', [BookApiController::class, 'getByCategory'])
-            ->name('api.books.category');
-        
-        // Get book statistics
-        Route::get('/stats/overview', [BookApiController::class, 'stats'])
-            ->name('api.books.stats');
     });
 
     // =====================================================================

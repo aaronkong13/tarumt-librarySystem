@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\BookService;
 use App\Services\BookSecurityService;
+use App\Services\BorrowingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -18,11 +19,13 @@ class BookApiController extends Controller
 {
     private BookService $bookService;
     private BookSecurityService $securityService;
+    private BorrowingService $borrowingService;
 
-    public function __construct(BookService $bookService, BookSecurityService $securityService)
+    public function __construct(BookService $bookService, BookSecurityService $securityService, BorrowingService $borrowingService)
     {
         $this->bookService = $bookService;
         $this->securityService = $securityService;
+        $this->borrowingService = $borrowingService;
     }
 
     /**
@@ -300,6 +303,64 @@ class BookApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/books/{id}/borrowing-history
+     * Get borrowing history for a specific book
+     */
+    public function borrowingHistory(int $id): JsonResponse
+    {
+        try {
+            // Verify book exists
+            $book = $this->bookService->getBookById($id);
+            if (!$book) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Book not found',
+                ], 404);
+            }
+
+            // Get borrowing stats and history
+            $stats = $this->borrowingService->getBookBorrowingStats($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book borrowing history retrieved successfully',
+                'book' => [
+                    'id' => $book->bookId,
+                    'title' => $book->title,
+                    'author' => $book->author,
+                    'isbn' => $book->isbn,
+                ],
+                'borrowing_stats' => [
+                    'total_borrows' => $stats['total_borrows'],
+                    'completed_borrows' => $stats['completed_borrows'],
+                    'currently_borrowed' => $stats['currently_borrowed'],
+                    'unique_borrowers' => $stats['unique_borrowers'],
+                    'history' => $stats['history']->map(function($record) {
+                        return [
+                            'id' => $record->borrowingId,
+                            'user' => [
+                                'id' => $record->user->userId,
+                                'name' => $record->user->name,
+                                'email' => $record->user->email,
+                            ],
+                            'borrow_date' => $record->borrow_date,
+                            'return_date' => $record->return_date,
+                            'due_date' => $record->due_date,
+                            'status' => $record->return_date ? 'Returned' : 'Borrowed',
+                        ];
+                    })->toArray(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving borrowing history',
                 'error' => $e->getMessage(),
             ], 500);
         }
