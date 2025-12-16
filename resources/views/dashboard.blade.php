@@ -66,9 +66,12 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="{{ route('books.index') }}"
+                        @php
+                            $isStudent = Auth::check() && (Auth::user()->role === 'Student');
+                        @endphp
+                        <a href="{{ $isStudent ? route('books.catalog') : route('books.index') }}"
                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 w-full justify-center">
-                            View Books <i class="fa-solid fa-arrow-right ml-2"></i>
+                            {{ $isStudent ? 'Browse Books' : 'View Books' }} <i class="fa-solid fa-arrow-right ml-2"></i>
                         </a>
                     </div>
                 </div>

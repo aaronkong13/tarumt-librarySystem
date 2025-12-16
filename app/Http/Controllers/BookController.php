@@ -92,6 +92,23 @@ class BookController extends Controller
         ]);
     }
 
+    // --- USER CATALOG (no staff enforcement) ---
+    public function catalog(Request $request)
+    {
+        // Public/user-facing catalog: search, filter, sort; no staff-only actions
+        $books = $this->bookService->getFilteredBooks($request, 12);
+
+        if ($request->ajax()) {
+            return view('layouts.book-cards', [ 'books' => $books ])->render();
+        }
+
+        return view('books.student-book', [
+            'books' => $books,
+            'filters' => $request->only(['q', 'status', 'category', 'year_from', 'year_to', 'sort']),
+            'categories' => $this->getCategories(),
+        ]);
+    }
+
     // --- CREATE ---
     public function create(BookSecurityService $security)
     {

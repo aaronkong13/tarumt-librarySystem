@@ -32,19 +32,29 @@
             <span class="font-medium text-sm">Dashboard</span>
         </a>
 
-        {{-- Books Management --}}
+        {{-- Books (role-aware) --}}
+        @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
         <a href="{{ route('books.index') }}" 
            class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'books' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
             <i class="fa-solid fa-book w-6"></i>
             <span class="font-medium text-sm">Books Management</span>
         </a>
+        @else
+        <a href="{{ route('books.catalog') }}" 
+           class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'books' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
+            <i class="fa-solid fa-book w-6"></i>
+            <span class="font-medium text-sm">Books List</span>
+        </a>
+        @endif
 
         {{-- Borrow & Return --}}
+        @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
         <a href="{{ route('borrowings.index') }}" 
            class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'borrowings' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
             <i class="fa-solid fa-hand-holding w-6"></i>
             <span class="font-medium text-sm">Borrow & Return</span>
         </a>
+        @endif
 
         {{-- User Management (Staff/Admin Only) --}}
         @if(in_array(Auth::user()->role, ['Staff', 'Admin']))

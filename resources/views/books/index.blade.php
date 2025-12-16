@@ -171,6 +171,7 @@
                     </form>
                 </div>
 
+                <!-- Table container for AJAX updates -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" id="booksTableContainer">
                     <div id="loadingOverlay" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
                         <div class="flex flex-col items-center">
@@ -364,6 +365,7 @@
                 }, 100);
             });
         @endif
+
     </script>
 
 </body>
