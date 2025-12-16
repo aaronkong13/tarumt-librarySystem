@@ -77,9 +77,9 @@ class BookController extends Controller
         // Use BookService to get filtered books from database
         $books = $this->bookService->getFilteredBooks($request, 10);
 
-        // AJAX request - return partial view
+        // AJAX request - return partial view (layouts.book-table)
         if ($request->ajax()) {
-            return view('books.partials.book-table', [
+            return view('layouts.book-table', [
                 'books' => $books
             ])->render();
         }

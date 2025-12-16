@@ -25,84 +25,13 @@
 
     <div class="flex min-h-screen">
 
-        <aside class="w-64 bg-[#0F172A] text-white flex-shrink-0 hidden md:flex flex-col fixed h-full z-20">
-            <div class="h-20 flex items-center px-8 border-b border-gray-800">
-                <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fa-solid fa-book-open text-white text-sm"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg tracking-tight">BookHub</h1>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-wider">Management System</p>
-                </div>
-            </div>
-
-            <nav class="flex-1 px-4 py-6 space-y-2">
-                <a href="/dashboard" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-house w-6"></i>
-                    <span class="font-medium text-sm">Dashboard</span>
-                </a>
-
-                <a href="{{ route('books.index') }}" class="flex items-center px-4 py-3 bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 rounded-xl transition-colors">
-                    <i class="fa-solid fa-book w-6"></i> <!-- i set this to selected element ah-->
-                    <span class="font-medium text-sm">Books Management</span>
-                </a>
-
-                @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
-                <a href="{{ route('users.index') }}" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-users w-6"></i>
-                    <span class="font-medium text-sm">User Management</span>
-                </a>
-                @endif
-                
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-chart-simple w-6"></i>
-                    <span class="font-medium text-sm">Reports</span>
-                </a>
-
-                <a href="#" class="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors">
-                    <i class="fa-solid fa-gear w-6"></i>
-                    <span class="font-medium text-sm">Settings</span>
-                </a>
-            </nav>
-
-            <div class="p-4 border-t border-gray-800">
-                <a href="{{ route('users.show', Auth::id()) }}" class="block">
-                    <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
-                        @if(Auth::user()->profile_image)
-                            <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 
-                                 alt="{{ Auth::user()->name }}" 
-                                 class="w-10 h-10 rounded-full object-cover">
-                        @else
-                            <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold">
-                                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-                            </div>
-                        @endif
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold truncate">{{ Auth::user()->name }}</p>
-                            <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role) }}</p>
-                        </div>
-                        <form action="{{ route('logout') }}" method="POST" onclick="event.stopPropagation();">
-                            @csrf
-                            <button type="submit" class="text-gray-400 hover:text-white transition-colors">
-                                <i class="fa-solid fa-right-from-bracket"></i>
-                            </button>
-                        </form>
-                    </div>
-                </a>
-            </div>
-        </aside>
+        <!-- Sidebar -->
+        @include('layouts.sidebar', ['active' => 'books'])
 
         <main class="flex-1 md:ml-64 relative">
             
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
                 <h2 class="text-xl font-bold text-gray-900">Book Management</h2>
-                
-                <div class="flex items-center gap-6">
-                    <button class="relative p-2 text-gray-400 hover:text-gray-600">
-                        <i class="fa-regular fa-bell text-xl"></i>
-                        <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                    </button>
-                </div>
             </header>
 
             <div class="p-8">
@@ -249,7 +178,7 @@
                             <p class="text-sm text-gray-600">Loading...</p>
                         </div>
                     </div>
-                    @include('books.partials.book-table', ['books' => $books])
+                    @include('layouts.book-table', ['books' => $books])
                 </div>
             </div>
         </main>
