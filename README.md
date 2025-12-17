@@ -1,3 +1,117 @@
+# TAR UMT Library System — Workflow Guide
+
+This document summarizes the key workflows and how the application implements MVC, ORM, and REST API. Use it for onboarding and quick navigation.
+
+## Overview
+- Architecture: Laravel MVC with Service layer, Eloquent ORM, REST API for external consumption.
+- Data Access: Controllers call Services which use Eloquent Models. Views never query the database directly.
+
+## MVC Structure
+- Controllers: `app/Http/Controllers/*`
+	- `BookController`: Staff list, student catalog, CRUD, attaches borrowing stats.
+	- `BorrowingController`: Borrow/return/renew/reservations/fines, user history.
+	- `Api/BookApiController`: REST endpoints (index/show/store/update/destroy/stats/borrowing-history).
+- Services: `app/Services/*`
+	- `BookService`: Filtering, sorting, CRUD via Eloquent.
+	- `BorrowingService`: Borrow/return/reserve/cancel/renew, fines, history/stats.
+- Models (ORM): `app/Models/*` — `Book`, `Borrowing`, `User`, `Reservation`, `Fine`.
+- Views: `resources/views/*` — Blade templates (staff table, student cards, pages).
+
+## REST API
+- File: `routes/api.php` (registered in `bootstrap/app.php`).
+- Endpoints (examples):
+	- `GET /api/books` → list books
+	- `GET /api/books/{id}` → show book
+	- `POST /api/books` → create
+	- `PUT /api/books/{id}` → update
+	- `DELETE /api/books/{id}` → delete
+	- `GET /api/books/category/{category}` → filter by category
+	- `GET /api/books/status/{status}` → filter by status
+	- `GET /api/books/stats/overview` → basic stats
+	- `GET /api/books/{id}/borrowing-history` → borrowing history + stats
+
+## Key Workflows
+
+### 1) Staff Book Management (List + CRUD)
+- Sidebar click: "Books Management" → `GET /books`
+- Route: `routes/web.php` guarded by `check.staff` middleware
+- Controller: `BookController@index`
+	- Calls `BookService::getFilteredBooks($request, 10)`
+	- Attaches per-book stats via `BorrowingService::getBookBorrowingStats($bookId)`
+- View: `resources/views/books/index.blade.php` with table partial `resources/views/layouts/book-table.blade.php`
+- Actions:
+	- Edit: `GET /books/{book}/edit` → `BookController@edit`
+	- Update: `PUT /books/{book}` → `BookController@update`
+	- Delete: `DELETE /books/{book}` → `BookController@destroy`
+
+### 2) Borrowing History Modal (Staff)
+- Click: Circulation "Total" button in the table
+- Frontend: JS in `layouts/book-table.blade.php` calls `GET /books/{id}/borrowing-history`
+- Route: `routes/web.php` maps to a controller JSON endpoint
+- Controller: `BookController@borrowingHistory`
+	- Uses `BorrowingService::getBookBorrowingStats($id)`
+	- Returns JSON with totals + per-record details (user, dates, status)
+- Modal: Renders stats and list client-side
+
+### 3) Student Book Catalog (Cards)
+- Sidebar click: "Books" → `GET /books/catalog`
+- Controller: `BookController@catalog`
+	- Calls `BookService::getFilteredBooks($request, 12)`
+- View: `resources/views/books/student-book.blade.php` with `resources/views/layouts/book-cards.blade.php`
+- No staff actions shown (edit/delete hidden and enforced server-side)
+
+## Data Access Policy
+- Views must not query the database.
+- Controllers should call Services; Services use Eloquent Models.
+- **Module Boundaries**: 
+  - Book module: Internal CRUD via `BookService` (for book management features only)
+  - Other modules (Borrowing, Reservations, etc.): Must access book data via REST API
+  - Use `BookApiClient` service for inter-module communication
+- External consumers use the REST API under `/api/books/*`
+
+## Inter-Module Communication
+When a module needs data from another module (e.g., Borrowing module needs book data):
+
+1. **Don't**: Import and call `BookService` directly from `BorrowingService`
+2. **Do**: Use `BookApiClient` to make HTTP requests to the Book API
+
+Example:
+```php
+// ❌ Wrong - direct service access
+$book = Book::findOrFail($bookId);
+$book->update(['status' => 'Borrowed']);
+
+// ✅ Correct - via API client
+$bookClient = new BookApiClient();
+$book = $bookClient->getBook($bookId);
+$bookClient->updateBookStatus($bookId, 'Borrowed');
+```
+
+This enforces:
+- Clear module boundaries
+- Independent deployment potential
+- API-first architecture
+- Easier testing and mocking
+
+## Quick Links
+- Web routes: `routes/web.php`
+- API routes: `routes/api.php`
+- Bootstrap routing registration: `bootstrap/app.php`
+- Controllers: `app/Http/Controllers/*`
+- Services: `app/Services/*`
+- Models: `app/Models/*`
+- Views: `resources/views/*`
+
+## Troubleshooting
+- If an API endpoint returns 401/403, verify middleware configuration and authentication.
+- If routes appear missing, run:
+
+```powershell
+php artisan route:clear
+php artisan cache:clear
+php artisan route:list | Select-String "books"
+```
+
 ## Requirements
 
 - PHP >= 8.2

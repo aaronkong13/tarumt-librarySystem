@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Book;
 use App\Models\Borrowing;
 use App\Models\Reservation;
 use App\Models\Fine;
 use App\Models\User;
+use App\Services\BookApiClient;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +17,12 @@ class BorrowingService
     protected $fineRatePerDay = 0.50;
     protected $defaultBorrowDays = 14;
     protected $reservationExpiryDays = 3;
+    protected BookApiClient $bookApiClient;
+
+    public function __construct()
+    {
+        $this->bookApiClient = new BookApiClient();
+    }
 
     /**
      * Borrow a book
@@ -26,24 +32,25 @@ class BorrowingService
         $durationDays = $durationDays ?? $this->defaultBorrowDays;
 
         return DB::transaction(function () use ($userId, $bookId, $durationDays) {
-            $book = Book::findOrFail($bookId);
+            // Get book data via API
+            $book = $this->bookApiClient->getBook($bookId);
             $user = User::findOrFail($userId);
 
             // Check if book is available
-            if ($book->isBorrowed()) {
+            if ($book['status'] === 'Borrowed') {
                 Log::warning('Borrow failed: Book already borrowed', [
                     'user_id' => $userId,
                     'book_id' => $bookId,
-                    'book_title' => $book->title
+                    'book_title' => $book['title']
                 ]);
                 throw new Exception('Book is currently borrowed by someone else.');
             }
 
-            if ($book->status !== 'Available') {
+            if ($book['status'] !== 'Available') {
                 Log::warning('Borrow failed: Book not available', [
                     'user_id' => $userId,
                     'book_id' => $bookId,
-                    'book_status' => $book->status
+                    'book_status' => $book['status']
                 ]);
                 throw new Exception('Book is not available for borrowing.');
             }
@@ -79,8 +86,8 @@ class BorrowingService
                 'status' => 'borrowed',
             ]);
 
-            // Update book status
-            $book->update(['status' => 'Borrowed']);
+            // Update book status via API
+            $this->bookApiClient->updateBookStatus($bookId, 'Borrowed');
 
             // Fulfill reservation if exists
             Reservation::where('user_id', $userId)
@@ -93,7 +100,7 @@ class BorrowingService
                 'user_id' => $userId,
                 'user_name' => $user->name,
                 'book_id' => $bookId,
-                'book_title' => $book->title,
+                'book_title' => $book['title'],
                 'due_date' => $borrowing->due_date->format('Y-m-d'),
                 'processed_by' => auth()->id()
             ]);
@@ -147,8 +154,8 @@ class BorrowingService
                 'fine_amount' => $fineAmount,
             ]);
 
-            // Update book status
-            $borrowing->book->update(['status' => 'Available']);
+            // Update book status via API
+            $this->bookApiClient->updateBookStatus($borrowing->book_id, 'Available');
 
             // Notify next reservation
             $this->notifyNextReservation($borrowing->book_id);
@@ -174,11 +181,12 @@ class BorrowingService
         $expiryDays = $expiryDays ?? $this->reservationExpiryDays;
 
         return DB::transaction(function () use ($userId, $bookId, $expiryDays) {
-            $book = Book::findOrFail($bookId);
+            // Get book data via API
+            $book = $this->bookApiClient->getBook($bookId);
             $user = User::findOrFail($userId);
 
             // Check if book is borrowed
-            if (!$book->isBorrowed()) {
+            if ($book['status'] !== 'Borrowed') {
                 throw new Exception('Book is available. Please borrow it directly.');
             }
 
@@ -383,17 +391,29 @@ class BorrowingService
      */
     public function getBookAvailability($bookId)
     {
-        $book = Book::with(['activeBorrowing.user', 'activeReservations.user'])
-            ->findOrFail($bookId);
+        // Get book data via API
+        $book = $this->bookApiClient->getBook($bookId);
+        
+        // Get borrowing and reservation data from local DB
+        $activeBorrowing = Borrowing::where('book_id', $bookId)
+            ->where('status', 'borrowed')
+            ->with('user')
+            ->first();
+            
+        $activeReservations = Reservation::where('book_id', $bookId)
+            ->where('status', 'active')
+            ->with('user')
+            ->orderBy('created_at')
+            ->get();
 
         return [
             'book' => $book,
-            'is_available' => !$book->isBorrowed() && $book->status === 'Available',
-            'is_borrowed' => $book->isBorrowed(),
-            'current_borrower' => $book->activeBorrowing?->user,
-            'due_date' => $book->activeBorrowing?->due_date,
-            'reservation_count' => $book->activeReservations->count(),
-            'reservation_queue' => $book->activeReservations,
+            'is_available' => $book['status'] === 'Available',
+            'is_borrowed' => $book['status'] === 'Borrowed',
+            'current_borrower' => $activeBorrowing?->user,
+            'due_date' => $activeBorrowing?->due_date,
+            'reservation_count' => $activeReservations->count(),
+            'reservation_queue' => $activeReservations,
         ];
     }
 
