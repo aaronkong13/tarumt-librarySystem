@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BookStateController;
+use App\Http\Controllers\ReservationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -74,7 +75,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/fines', [BorrowingController::class, 'myFines'])->name('borrowings.fines');
         Route::post('/fines/{fine}/pay', [BorrowingController::class, 'payFine'])->name('fines.pay');
 
-        // Reservations
+        // Reservations (Legacy - keep for backward compatibility)
         Route::post('/reserve', [BorrowingController::class, 'reserve'])->name('borrowings.reserve');
         Route::delete('/reservations/{reservation}', [BorrowingController::class, 'cancelReservation'])->name('reservations.cancel');
 
@@ -84,6 +85,22 @@ Route::middleware('auth')->group(function () {
         // Staff only
         Route::middleware('check.staff')->group(function () {
             Route::get('/overdue', [BorrowingController::class, 'overdueList'])->name('borrowings.overdue');
+        });
+    });
+
+    // --- Reservation Module Routes (New Implementation) ---
+    Route::prefix('reservations')->group(function () {
+        // Student routes
+        Route::post('/', [ReservationController::class, 'store'])->name('reservations.store');
+        Route::delete('/{id}', [ReservationController::class, 'destroy'])->name('reservations.destroy');
+        Route::get('/my-reservations', [ReservationController::class, 'myReservations'])->name('reservations.my');
+        Route::get('/my-notifications', [ReservationController::class, 'myNotifications'])->name('reservations.notifications');
+        Route::get('/check/{bookId}', [ReservationController::class, 'checkReservationStatus'])->name('reservations.check');
+
+        // Staff only routes
+        Route::middleware('check.staff')->group(function () {
+            Route::get('/queue/{bookId}', [ReservationController::class, 'viewQueue'])->name('reservations.queue');
+            Route::get('/all-queues', [ReservationController::class, 'allQueues'])->name('reservations.all-queues');
         });
     });
 

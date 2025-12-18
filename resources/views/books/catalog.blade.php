@@ -27,6 +27,32 @@
         </header>
 
         <div class="p-8">
+            {{-- Success/Error Messages --}}
+            @if(session('success'))
+                <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center">
+                    <i class="fa-solid fa-circle-check mr-2"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex items-center">
+                    <i class="fa-solid fa-circle-exclamation mr-2"></i>
+                    <span>{{ session('error') }}</span>
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
+                    <p class="font-semibold mb-2"><i class="fa-solid fa-circle-exclamation mr-2"></i>Validation Errors:</p>
+                    <ul class="list-disc list-inside text-sm">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
                 <form method="GET" action="{{ route('books.catalog') }}" id="searchFilterForm" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-6 gap-3">

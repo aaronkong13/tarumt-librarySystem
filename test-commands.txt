@@ -1,0 +1,20 @@
+// Test in Artisan Tinker
+// Copy and paste these lines one by one
+
+$student = App\Models\User::where('role', 'Student')->first();
+echo "Student: " . $student->name . "\n";
+
+$book = App\Models\Book::where('status', 'Borrowed')->first();
+if ($book) {
+    echo "Book: " . $book->title . " (Status: " . $book->status . ")\n";
+} else {
+    echo "No borrowed books found\n";
+}
+
+$service = new App\Services\ReservationService();
+try {
+    $reservation = $service->reserveBook($student->id, $book->bookId);
+    echo "SUCCESS! Reservation ID: " . $reservation->id . ", Position: " . $reservation->queue_position . "\n";
+} catch (Exception $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+}

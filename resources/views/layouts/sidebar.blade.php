@@ -65,6 +65,24 @@
         </a>
         @endif
 
+        {{-- Reservations (Student Only) --}}
+        @if(Auth::user()->isStudent())
+        <a href="{{ route('reservations.my') }}" 
+           class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'reservations' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
+            <i class="fa-solid fa-bookmark w-6"></i>
+            <span class="font-medium text-sm">My Reservations</span>
+        </a>
+        @endif
+
+        {{-- Reservation Queues (Staff/Admin Only) --}}
+        @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
+        <a href="{{ route('reservations.all-queues') }}" 
+           class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'reservations' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
+            <i class="fa-solid fa-clipboard-list w-6"></i>
+            <span class="font-medium text-sm">Reservation Queues</span>
+        </a>
+        @endif
+
         {{-- Borrowing History --}}
         @if(Route::has('borrowings.history'))
         <a href="{{ route('borrowings.history') }}" 

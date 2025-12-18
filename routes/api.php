@@ -103,4 +103,46 @@ Route::middleware(['web'])->group(function () {
             ->name('api.users.stats');
     });
 
+    // =====================================================================
+    // RESERVATION API ENDPOINTS (REST)
+    // =====================================================================
+    
+    Route::prefix('reservations')->group(function () {
+        
+        // Create a new reservation (Student only)
+        Route::post('/', [\App\Http\Controllers\ReservationController::class, 'store'])
+            ->name('api.reservations.store')
+            ->middleware('auth');
+        
+        // Cancel a reservation (Student only - own reservations)
+        Route::delete('/{id}', [\App\Http\Controllers\ReservationController::class, 'destroy'])
+            ->name('api.reservations.destroy')
+            ->middleware('auth');
+        
+        // Get current user's active reservations
+        Route::get('/my-reservations', [\App\Http\Controllers\ReservationController::class, 'myReservations'])
+            ->name('api.reservations.my-reservations')
+            ->middleware('auth');
+        
+        // Get current user's notifications
+        Route::get('/my-notifications', [\App\Http\Controllers\ReservationController::class, 'myNotifications'])
+            ->name('api.reservations.my-notifications')
+            ->middleware('auth');
+        
+        // View reservation queue for a specific book (Student can see own position)
+        Route::get('/queue/{bookId}', [\App\Http\Controllers\ReservationController::class, 'viewQueue'])
+            ->name('api.reservations.queue')
+            ->middleware('auth');
+        
+        // View all reservation queues (Staff only)
+        Route::get('/queues/all', [\App\Http\Controllers\ReservationController::class, 'allQueues'])
+            ->name('api.reservations.all-queues')
+            ->middleware('auth');
+        
+        // Get reservation statistics
+        Route::get('/stats/overview', [\App\Http\Controllers\ReservationController::class, 'stats'])
+            ->name('api.reservations.stats')
+            ->middleware('auth');
+    });
+
 });

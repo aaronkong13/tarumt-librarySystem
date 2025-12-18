@@ -10,19 +10,29 @@ class Reservation extends Model
 {
     use HasFactory, SoftDeletes;
 
+    // Status constants
+    const STATUS_WAITING = 'waiting';
+    const STATUS_NOTIFIED = 'notified';
+    const STATUS_FULFILLED = 'fulfilled';
+    const STATUS_CANCELLED = 'cancelled';
+    const STATUS_EXPIRED = 'expired';
+    const STATUS_ACTIVE = 'active'; // Legacy support
+
     protected $fillable = [
         'user_id',
         'book_id',
         'reservation_date',
         'expiry_date',
+        'notified_at',
         'status',
         'queue_position',
         'notes',
     ];
 
     protected $casts = [
-        'reservation_date' => 'date',
-        'expiry_date' => 'date',
+        'reservation_date' => 'datetime',
+        'expiry_date' => 'datetime',
+        'notified_at' => 'datetime',
     ];
 
     // Relationships
@@ -39,12 +49,23 @@ class Reservation extends Model
     // Scopes
     public function scopeActive($query)
     {
-        return $query->where('status', 'active')->where('expiry_date', '>=', now());
+        return $query->whereIn('status', [self::STATUS_WAITING, self::STATUS_NOTIFIED, 'active']);
+    }
+
+    public function scopeWaiting($query)
+    {
+        return $query->where('status', self::STATUS_WAITING);
+    }
+
+    public function scopeNotified($query)
+    {
+        return $query->where('status', self::STATUS_NOTIFIED);
     }
 
     public function scopeExpired($query)
     {
-        return $query->where('status', 'active')->where('expiry_date', '<', now());
+        return $query->where('status', self::STATUS_NOTIFIED)
+            ->where('expiry_date', '<', now());
     }
 
     public function scopeByUser($query, $userId)
@@ -57,9 +78,49 @@ class Reservation extends Model
         return $query->where('book_id', $bookId);
     }
 
-    // Helper
+    public function scopeOrderedQueue($query)
+    {
+        return $query->orderBy('queue_position')->orderBy('created_at');
+    }
+
+    // Helper methods
     public function isExpired()
     {
-        return $this->status === 'active' && $this->expiry_date->isPast();
+        return $this->status === self::STATUS_NOTIFIED 
+            && $this->expiry_date 
+            && $this->expiry_date->isPast();
+    }
+
+    public function isWaiting()
+    {
+        return $this->status === self::STATUS_WAITING;
+    }
+
+    public function isNotified()
+    {
+        return $this->status === self::STATUS_NOTIFIED;
+    }
+
+    public function getRemainingDays()
+    {
+        if (!$this->expiry_date) {
+            return null;
+        }
+        
+        $days = now()->diffInDays($this->expiry_date, false);
+        return max(0, $days);
+    }
+
+    public function getStatusLabel()
+    {
+        return match($this->status) {
+            self::STATUS_WAITING => 'Waiting in Queue',
+            self::STATUS_NOTIFIED => 'Available - Collect Now',
+            self::STATUS_FULFILLED => 'Borrowed',
+            self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_EXPIRED => 'Expired',
+            'active' => 'Active', // Legacy
+            default => ucfirst($this->status),
+        };
     }
 }

@@ -109,18 +109,8 @@ class BorrowingController extends Controller
                 $book->update(['status' => 'Borrowed']);
 
                 // Fulfill reservation if exists
-                $reservation = Reservation::where('user_id', $userId)
-                    ->where('book_id', $book->bookId)
-                    ->where('status', 'active')
-                    ->first();
-
-                if ($reservation) {
-                    $reservation->update(['status' => 'fulfilled']);
-
-                    // Observer Pattern: Notify about fulfilled reservation
-                    $subject = $this->createReservationSubject($book);
-                    $subject->notifyReservationFulfilled($reservation);
-                }
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->fulfillReservation($userId, $book->bookId);
 
                 Log::info('State Pattern [BORROW]: State transition completed', [
                     'borrowing_id' => $borrowing->id,
@@ -211,12 +201,31 @@ class BorrowingController extends Controller
                     'fine_amount' => $fineAmount,
                 ]);
 
-                // Update book status
-                $book->update(['status' => 'Available']);
+                // === OBSERVER PATTERN: Check for reservations ===
+                // If there are active reservations, notify next in queue
+                $hasReservation = Reservation::where('book_id', $book->bookId)
+                    ->whereIn('status', ['waiting', Reservation::STATUS_WAITING])
+                    ->exists();
 
-                // === OBSERVER PATTERN: Notify waiting reservations ===
-                $subject = $this->createReservationSubject($book);
-                $subject->notifyBookAvailable();
+                if ($hasReservation) {
+                    // Book stays as 'Reserved' for the next person in queue
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $nextReservation = $reservationService->notifyNextInQueue($book);
+                    
+                    if ($nextReservation) {
+                        $book->update(['status' => 'Reserved']);
+                        Log::info('Book reserved for next user in queue', [
+                            'book_id' => $book->bookId,
+                            'reservation_id' => $nextReservation->id,
+                            'user_id' => $nextReservation->user_id
+                        ]);
+                    } else {
+                        $book->update(['status' => 'Available']);
+                    }
+                } else {
+                    // No reservations, book becomes available
+                    $book->update(['status' => 'Available']);
+                }
 
                 Log::info('State Pattern [RETURN]: State transition completed', [
                     'borrowing_id' => $borrowingId,
