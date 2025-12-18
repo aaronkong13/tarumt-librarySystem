@@ -29,6 +29,34 @@ class BookApiController extends Controller
     }
 
     /**
+     * Clean binary data from book model for JSON serialization
+     * Removes cover_image BLOB to prevent UTF-8 encoding errors
+     */
+    private function cleanBookData($book)
+    {
+        if ($book instanceof \Illuminate\Database\Eloquent\Collection) {
+            return $book->map(function($item) {
+                return $this->cleanBookData($item);
+            });
+        }
+
+        if ($book instanceof \Illuminate\Pagination\Paginator) {
+            $items = $book->items();
+            $cleaned = array_map(function($item) {
+                $item->cover_image = null; // Remove binary data
+                return $item;
+            }, $items);
+            return $cleaned;
+        }
+
+        // Single book model
+        if (is_object($book) && method_exists($book, 'toArray')) {
+            $book->cover_image = null; // Remove binary data
+        }
+
+        return $book;
+    }
+    /**
      * GET /api/books
      * Get all books with optional filtering and pagination
      */
@@ -36,11 +64,21 @@ class BookApiController extends Controller
     {
         try {
             $books = $this->bookService->getFilteredBooks($request, 15);
+            
+            // Convert BLOB cover_image to base64 for JSON serialization
+            $cleanedBooks = array_map(function($book) {
+                if ($book->cover_image) {
+                    $book->cover_image = 'data:image/jpeg;base64,' . base64_encode($book->cover_image);
+                } else {
+                    $book->cover_image = null;
+                }
+                return $book;
+            }, $books->items());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Books retrieved successfully',
-                'data' => $books->items(),
+                'data' => $cleanedBooks,
                 'pagination' => [
                     'total' => $books->total(),
                     'per_page' => $books->perPage(),
@@ -71,6 +109,13 @@ class BookApiController extends Controller
                     'success' => false,
                     'message' => 'Book not found',
                 ], 404);
+            }
+
+            // Convert BLOB cover_image to base64
+            if ($book->cover_image) {
+                $book->cover_image = 'data:image/jpeg;base64,' . base64_encode($book->cover_image);
+            } else {
+                $book->cover_image = null;
             }
 
             return response()->json([

@@ -27,6 +27,7 @@ class User extends Authenticatable
         'address',
         'status',
         'profile_image',
+        'api_token',  // ← For API authentication
     ];
 
     /**
