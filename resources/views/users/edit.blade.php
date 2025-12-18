@@ -22,8 +22,9 @@
             
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('users.index') }}" class="text-gray-400 hover:text-gray-600">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ route('users.index') }}" 
+                       class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all">
                         <i class="fa-solid fa-arrow-left"></i>
                     </a>
                     <div>

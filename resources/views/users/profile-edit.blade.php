@@ -16,14 +16,15 @@
     <div class="flex min-h-screen">
 
         <!-- Sidebar -->
-        @include('layouts.sidebar', ['active' => 'users'])
+        @include('layouts.sidebar', ['active' => 'profile'])
 
         <main class="flex-1 md:ml-64 relative">
             
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('users.show', $user) }}" class="text-gray-400 hover:text-gray-600">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ route('profile.show') }}" 
+                       class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all">
                         <i class="fa-solid fa-arrow-left"></i>
                     </a>
                     <div>
@@ -117,6 +118,7 @@
                                     <input type="email" value="{{ $user->email }}" 
                                         class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed"
                                         readonly>
+                                    <input type="hidden" name="email" value="{{ $user->email }}">
                                     <p class="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                                 </div>
 
