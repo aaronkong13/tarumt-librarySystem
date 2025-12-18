@@ -118,7 +118,7 @@
 
     {{-- User Profile Section --}}
     <div class="p-4 border-t border-gray-800">
-        <a href="{{ route('users.show', Auth::id()) }}" class="block">
+        <a href="{{ route('profile.show') }}" class="block">
             <div class="bg-[#1E293B] rounded-xl p-3 flex items-center gap-3 hover:bg-[#2D3B52] transition-colors cursor-pointer">
                 @if(Auth::user()->profile_image)
                     <img src="data:image/jpeg;base64,{{ base64_encode(Auth::user()->profile_image) }}" 

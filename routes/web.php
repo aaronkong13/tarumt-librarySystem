@@ -45,7 +45,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
     });
 
-    // --- Profile Routes (Personal profile editing) ---
+    // --- Profile Routes (Personal profile viewing and editing) ---
+    Route::get('/profile', [UserController::class, 'showProfile'])->name('profile.show');
     Route::get('/profile/edit', [UserController::class, 'editProfile'])->name('profile.edit');
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
 

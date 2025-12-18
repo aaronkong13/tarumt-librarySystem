@@ -22,9 +22,17 @@
             
             <!-- Header -->
             <header class="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900">User Profile</h2>
-                    <p class="text-sm text-gray-500">View and manage account information</p>
+                <div class="flex items-center space-x-4">
+                    @if(Auth::user()->isStaff() || Auth::user()->isAdmin())
+                        <a href="{{ route('users.index') }}" 
+                           class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </a>
+                    @endif
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">User Profile</h2>
+                        <p class="text-sm text-gray-500">View and manage account information</p>
+                    </div>
                 </div>
                 <div>
                 @if(Auth::id() === $user->id)
