@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\BookApiController;
 use App\Http\Controllers\Api\UserApiController;
+use App\Http\Controllers\Api\ReservationApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -127,37 +128,42 @@ Route::middleware(['web'])->group(function () {
     Route::prefix('reservations')->group(function () {
 
         // Create a new reservation (Student only)
-        Route::post('/', [\App\Http\Controllers\ReservationController::class, 'store'])
+        Route::post('/', [ReservationApiController::class, 'store'])
             ->name('api.reservations.store')
             ->middleware('auth');
 
         // Cancel a reservation (Student only - own reservations)
-        Route::delete('/{id}', [\App\Http\Controllers\ReservationController::class, 'destroy'])
+        Route::delete('/{id}', [ReservationApiController::class, 'destroy'])
             ->name('api.reservations.destroy')
             ->middleware('auth');
 
         // Get current user's active reservations
-        Route::get('/my-reservations', [\App\Http\Controllers\ReservationController::class, 'myReservations'])
+        Route::get('/my-reservations', [ReservationApiController::class, 'myReservations'])
             ->name('api.reservations.my-reservations')
             ->middleware('auth');
 
         // Get current user's notifications
-        Route::get('/my-notifications', [\App\Http\Controllers\ReservationController::class, 'myNotifications'])
+        Route::get('/my-notifications', [ReservationApiController::class, 'myNotifications'])
             ->name('api.reservations.my-notifications')
             ->middleware('auth');
 
+        // Check reservation status for a book
+        Route::get('/check/{bookId}', [ReservationApiController::class, 'checkStatus'])
+            ->name('api.reservations.check')
+            ->middleware('auth');
+
         // View reservation queue for a specific book (Student can see own position)
-        Route::get('/queue/{bookId}', [\App\Http\Controllers\ReservationController::class, 'viewQueue'])
+        Route::get('/queue/{bookId}', [ReservationApiController::class, 'viewQueue'])
             ->name('api.reservations.queue')
             ->middleware('auth');
 
         // View all reservation queues (Staff only)
-        Route::get('/queues/all', [\App\Http\Controllers\ReservationController::class, 'allQueues'])
+        Route::get('/queues/all', [ReservationApiController::class, 'allQueues'])
             ->name('api.reservations.all-queues')
             ->middleware('auth');
 
         // Get reservation statistics
-        Route::get('/stats/overview', [\App\Http\Controllers\ReservationController::class, 'stats'])
+        Route::get('/stats/overview', [ReservationApiController::class, 'stats'])
             ->name('api.reservations.stats')
             ->middleware('auth');
     });
