@@ -2,16 +2,28 @@
 
 namespace App\Services;
 
+use App\Models\Book;
 use App\Models\Borrowing;
 use App\Models\Reservation;
 use App\Models\Fine;
 use App\Models\User;
 use App\Services\BookApiClient;
+use App\Services\ReservationService;
+use App\States\Borrowing\BorrowingContext;
+use App\Observers\Reservation\ReservationSubject;
+use App\Observers\Reservation\EmailNotificationObserver;
+use App\Observers\Reservation\LoggingObserver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
+/**
+ * BorrowingService - Centralized business logic for borrowing operations
+ *
+ * Uses State Pattern and Observer Pattern for borrowing workflow.
+ * All business logic is here - controllers just handle HTTP concerns.
+ */
 class BorrowingService
 {
     protected $fineRatePerDay = 0.50;
@@ -25,84 +37,57 @@ class BorrowingService
     }
 
     /**
-     * Borrow a book
+     * Borrow a book - Using State Pattern
      */
     public function borrowBook($userId, $bookId, $durationDays = null)
     {
         $durationDays = $durationDays ?? $this->defaultBorrowDays;
 
         return DB::transaction(function () use ($userId, $bookId, $durationDays) {
-            // Get book data via API
-            $book = $this->bookApiClient->getBook($bookId);
+            $book = Book::findOrFail($bookId);
             $user = User::findOrFail($userId);
 
-            // Check if book is available
-            if ($book['status'] === 'Borrowed') {
-                Log::warning('Borrow failed: Book already borrowed', [
-                    'user_id' => $userId,
-                    'book_id' => $bookId,
-                    'book_title' => $book['title']
-                ]);
-                throw new Exception('Book is currently borrowed by someone else.');
+            // === STATE PATTERN: Create context and check state ===
+            $context = new BorrowingContext($book);
+
+            Log::info('State Pattern [BORROW]: Checking book state', [
+                'book_id' => $book->bookId,
+                'current_state' => $context->getStateName(),
+                'can_borrow' => $context->canBorrow()
+            ]);
+
+            // Check if book can be borrowed based on current state
+            if (!$context->canBorrow()) {
+                throw new Exception("Cannot borrow book. Current state: {$context->getStateName()}");
             }
 
-            if ($book['status'] !== 'Available') {
-                Log::warning('Borrow failed: Book not available', [
-                    'user_id' => $userId,
-                    'book_id' => $bookId,
-                    'book_status' => $book['status']
-                ]);
-                throw new Exception('Book is not available for borrowing.');
-            }
+            // Business validations
+            $this->validateBorrowingEligibility($user);
 
-            // Check user's borrowing limit
-            $activeCount = $user->activeBorrowings()->count();
-            $maxLimit = $user->isStudent() ? 3 : 5;
-
-            if ($activeCount >= $maxLimit) {
-                Log::warning('Borrow failed: Limit reached', [
-                    'user_id' => $userId,
-                    'active_count' => $activeCount,
-                    'max_limit' => $maxLimit
-                ]);
-                throw new Exception("You have reached the maximum borrowing limit ({$maxLimit} books).");
-            }
-
-            // Check unpaid fines
-            if ($user->getTotalUnpaidFines() > 0) {
-                Log::warning('Borrow failed: Unpaid fines', [
-                    'user_id' => $userId,
-                    'unpaid_fines' => $user->getTotalUnpaidFines()
-                ]);
-                throw new Exception('Please pay your outstanding fines before borrowing.');
-            }
+            // === STATE PATTERN: Perform state transition ===
+            $context->borrow();
 
             // Create borrowing record
             $borrowing = Borrowing::create([
                 'user_id' => $userId,
-                'book_id' => $bookId,
+                'book_id' => $book->bookId,
                 'borrow_date' => now(),
                 'due_date' => now()->addDays($durationDays),
                 'status' => 'borrowed',
             ]);
 
-            // Update book status via API
-            $this->bookApiClient->updateBookStatus($bookId, 'Borrowed');
+            // Update book status
+            $book->update(['status' => 'Borrowed']);
 
             // Fulfill reservation if exists
-            Reservation::where('user_id', $userId)
-                ->where('book_id', $bookId)
-                ->where('status', 'active')
-                ->update(['status' => 'fulfilled']);
+            $reservationService = app(ReservationService::class);
+            $reservationService->fulfillReservation($userId, $book->bookId);
 
-            Log::info('Book borrowed successfully', [
+            Log::info('State Pattern [BORROW]: State transition completed', [
                 'borrowing_id' => $borrowing->id,
                 'user_id' => $userId,
-                'user_name' => $user->name,
-                'book_id' => $bookId,
-                'book_title' => $book['title'],
-                'due_date' => $borrowing->due_date->format('Y-m-d'),
-                'processed_by' => auth()->id()
+                'book_id' => $book->bookId,
+                'new_state' => $context->getStateName()
             ]);
 
             return $borrowing->load(['user', 'book']);
@@ -110,19 +95,28 @@ class BorrowingService
     }
 
     /**
-     * Return a book
+     * Return a book - Using State Pattern
      */
     public function returnBook($borrowingId)
     {
         return DB::transaction(function () use ($borrowingId) {
-            $borrowing = Borrowing::with('book')->findOrFail($borrowingId);
+            $borrowing = Borrowing::with('book', 'user')->findOrFail($borrowingId);
+            $book = $borrowing->book;
 
-            if ($borrowing->status === 'returned') {
-                Log::warning('Return failed: Already returned', ['borrowing_id' => $borrowingId]);
-                throw new Exception('This book has already been returned.');
+            // === STATE PATTERN: Create context with current borrowing ===
+            $context = new BorrowingContext($book, $borrowing);
+
+            Log::info('State Pattern [RETURN]: Checking book state', [
+                'borrowing_id' => $borrowingId,
+                'current_state' => $context->getStateName(),
+                'can_return' => $context->canReturn()
+            ]);
+
+            if (!$context->canReturn()) {
+                throw new Exception("Cannot return book. Current state: {$context->getStateName()}");
             }
 
-            // Calculate fine if overdue
+            // Calculate fine if overdue (handled by OverdueState)
             $fineAmount = 0;
             if ($borrowing->due_date->isPast()) {
                 $daysOverdue = now()->diffInDays($borrowing->due_date);
@@ -138,105 +132,98 @@ class BorrowingService
                         'status' => 'unpaid',
                     ]);
 
-                    Log::info('Fine created for overdue return', [
+                    Log::info('State Pattern [RETURN]: Fine created for overdue', [
                         'borrowing_id' => $borrowingId,
-                        'user_id' => $borrowing->user_id,
                         'days_overdue' => $daysOverdue,
                         'fine_amount' => $fineAmount
                     ]);
                 }
             }
 
-            // Update borrowing
+            // === STATE PATTERN: Perform state transition ===
+            $context->returnBook();
+
+            // Update borrowing record
             $borrowing->update([
                 'return_date' => now(),
                 'status' => 'returned',
                 'fine_amount' => $fineAmount,
             ]);
 
-            // Update book status via API
-            $this->bookApiClient->updateBookStatus($borrowing->book_id, 'Available');
+            // === OBSERVER PATTERN: Check for reservations ===
+            $hasReservation = Reservation::where('book_id', $book->bookId)
+                ->whereIn('status', ['waiting', Reservation::STATUS_WAITING])
+                ->exists();
 
-            // Notify next reservation
-            $this->notifyNextReservation($borrowing->book_id);
+            if ($hasReservation) {
+                // Book stays as 'Reserved' for the next person in queue
+                $reservationService = app(ReservationService::class);
+                $nextReservation = $reservationService->notifyNextInQueue($book);
 
-            Log::info('Book returned successfully', [
+                if ($nextReservation) {
+                    $book->update(['status' => 'Reserved']);
+                    Log::info('Book reserved for next user in queue', [
+                        'book_id' => $book->bookId,
+                        'reservation_id' => $nextReservation->id,
+                        'user_id' => $nextReservation->user_id
+                    ]);
+                } else {
+                    $book->update(['status' => 'Available']);
+                }
+            } else {
+                // No reservations, book becomes available
+                $book->update(['status' => 'Available']);
+            }
+
+            Log::info('State Pattern [RETURN]: State transition completed', [
                 'borrowing_id' => $borrowingId,
-                'user_id' => $borrowing->user_id,
-                'book_id' => $borrowing->book_id,
-                'book_title' => $borrowing->book->title,
                 'fine_amount' => $fineAmount,
-                'processed_by' => auth()->id()
+                'new_state' => $context->getStateName()
             ]);
 
-            return $borrowing->load(['user', 'book']);
+            return $borrowing->fresh(['user', 'book', 'fines']);
         });
     }
 
     /**
-     * Reserve a book
+     * Reserve a book - Using State Pattern and Observer Pattern
      */
     public function reserveBook($userId, $bookId, $expiryDays = null)
     {
         $expiryDays = $expiryDays ?? $this->reservationExpiryDays;
 
         return DB::transaction(function () use ($userId, $bookId, $expiryDays) {
-            // Get book data via API
-            $book = $this->bookApiClient->getBook($bookId);
+            $book = Book::findOrFail($bookId);
             $user = User::findOrFail($userId);
 
-            // Check if book is borrowed
-            if ($book['status'] !== 'Borrowed') {
+            // === STATE PATTERN: Check if book is borrowed ===
+            $context = new BorrowingContext($book);
+            if ($context->canBorrow()) {
                 throw new Exception('Book is available. Please borrow it directly.');
             }
 
-            // Check if book already has an active reservation (only 1 allowed per book)
-            $bookHasReservation = Reservation::where('book_id', $bookId)
-                ->where('status', 'active')
-                ->exists();
-
-            if ($bookHasReservation) {
-                throw new Exception('This book already has an active reservation. Only one reservation per book is allowed.');
-            }
-
-            // Check if user already has reservation for this book
-            $userHasReservation = Reservation::where('user_id', $userId)
-                ->where('book_id', $bookId)
-                ->where('status', 'active')
-                ->exists();
-
-            if ($userHasReservation) {
-                throw new Exception('This user already has an active reservation for this book.');
-            }
-
-            // Check reservation limit per user
-            $activeReservations = $user->activeReservations()->count();
-            if ($activeReservations >= 3) {
-                throw new Exception('This user has reached the maximum of 3 active reservations.');
-            }
+            // Validate reservation eligibility
+            $this->validateReservationEligibility($user, $book);
 
             // Get queue position
-            $queuePosition = Reservation::where('book_id', $bookId)
+            $queuePosition = Reservation::where('book_id', $book->bookId)
                 ->where('status', 'active')
                 ->count() + 1;
 
             $reservation = Reservation::create([
                 'user_id' => $userId,
-                'book_id' => $bookId,
+                'book_id' => $book->bookId,
                 'reservation_date' => now(),
                 'expiry_date' => now()->addDays($expiryDays),
                 'status' => 'active',
                 'queue_position' => $queuePosition,
             ]);
 
-            Log::info('Book reserved successfully', [
+            Log::info('Reservation created', [
                 'reservation_id' => $reservation->id,
                 'user_id' => $userId,
-                'user_name' => $user->name,
-                'book_id' => $bookId,
-                'book_title' => $book->title,
-                'expiry_date' => $reservation->expiry_date->format('Y-m-d'),
-                'processed_by' => auth()->id()
+                'book_id' => $book->bookId,
+                'queue_position' => $queuePosition
             ]);
 
             return $reservation->load(['user', 'book']);
@@ -244,103 +231,314 @@ class BorrowingService
     }
 
     /**
-     * Cancel reservation
+     * Cancel reservation - Using State Pattern
      */
     public function cancelReservation($reservationId)
     {
-        $reservation = Reservation::findOrFail($reservationId);
+        return DB::transaction(function () use ($reservationId) {
+            $reservation = Reservation::with('book')->findOrFail($reservationId);
 
-        if ($reservation->status !== 'active') {
-            throw new Exception('This reservation is not active.');
-        }
+            if ($reservation->status !== 'active') {
+                throw new Exception('This reservation is not active.');
+            }
 
-        $reservation->update(['status' => 'cancelled']);
+            $reservation->update(['status' => 'cancelled']);
 
-        // Update queue positions
-        Reservation::where('book_id', $reservation->book_id)
-            ->where('status', 'active')
-            ->where('queue_position', '>', $reservation->queue_position)
-            ->decrement('queue_position');
+            // Update queue positions
+            Reservation::where('book_id', $reservation->book_id)
+                ->where('status', 'active')
+                ->where('queue_position', '>', $reservation->queue_position)
+                ->decrement('queue_position');
 
-        Log::info('Reservation cancelled', [
-            'reservation_id' => $reservationId,
-            'user_id' => $reservation->user_id,
-            'book_id' => $reservation->book_id,
-            'cancelled_by' => auth()->id()
-        ]);
+            // Check if book is available and notify
+            $context = new BorrowingContext($reservation->book);
+            if ($context->canBorrow()) {
+                $subject = $this->createReservationSubject($reservation->book);
+                $subject->notifyBookAvailable();
+            }
 
-        return $reservation;
+            Log::info('Reservation cancelled', [
+                'reservation_id' => $reservationId,
+                'user_id' => $reservation->user_id,
+                'book_id' => $reservation->book_id
+            ]);
+
+            return $reservation;
+        });
     }
 
     /**
-     * Renew a borrowing
+     * Renew a borrowing - Using State Pattern
      */
     public function renewBorrowing($borrowingId, $additionalDays = 7)
     {
-        $borrowing = Borrowing::with('book')->findOrFail($borrowingId);
+        return DB::transaction(function () use ($borrowingId, $additionalDays) {
+            $borrowing = Borrowing::with('book')->findOrFail($borrowingId);
+            $book = $borrowing->book;
 
-        if ($borrowing->status !== 'borrowed') {
-            throw new Exception('Only active borrowings can be renewed.');
-        }
+            // === STATE PATTERN: Create context and check state ===
+            $context = new BorrowingContext($book, $borrowing);
 
-        // Check for pending reservations
-        $hasReservations = $borrowing->book->activeReservations()->exists();
-        if ($hasReservations) {
-            throw new Exception('Cannot renew. This book has pending reservations.');
-        }
+            Log::info('State Pattern [RENEW]: Checking book state', [
+                'borrowing_id' => $borrowingId,
+                'current_state' => $context->getStateName(),
+                'can_renew' => $context->canRenew()
+            ]);
 
-        $borrowing->update([
-            'due_date' => Carbon::parse($borrowing->due_date)->addDays($additionalDays),
-            'notes' => ($borrowing->notes ? $borrowing->notes . "\n" : '') . 'Renewed on ' . now()->format('Y-m-d'),
-        ]);
+            if (!$context->canRenew()) {
+                throw new Exception("Cannot renew book. Current state: {$context->getStateName()}. Renewal only allowed for borrowed (not overdue) books.");
+            }
 
-        return $borrowing->load(['user', 'book']);
+            // Check for pending reservations
+            if ($book->hasActiveReservation()) {
+                throw new Exception('Cannot renew. This book has pending reservations.');
+            }
+
+            // === STATE PATTERN: Perform renewal ===
+            $context->renew();
+
+            // Update borrowing record
+            $newDueDate = $borrowing->due_date->addDays($additionalDays);
+            $borrowing->update([
+                'due_date' => $newDueDate,
+                'notes' => ($borrowing->notes ? $borrowing->notes . "\n" : '') . 'Renewed on ' . now()->format('Y-m-d'),
+            ]);
+
+            Log::info('State Pattern [RENEW]: Due date extended', [
+                'borrowing_id' => $borrowingId,
+                'additional_days' => $additionalDays,
+                'new_due_date' => $newDueDate->format('Y-m-d'),
+                'state' => $context->getStateName()
+            ]);
+
+            return $borrowing->fresh(['user', 'book']);
+        });
     }
 
     /**
-     * Pay fine
+     * Pay fine - Using State Pattern
      */
     public function payFine($fineId, $paymentMethod = 'cash')
     {
-        $fine = Fine::findOrFail($fineId);
+        return DB::transaction(function () use ($fineId, $paymentMethod) {
+            $fine = Fine::with('borrowing.book')->findOrFail($fineId);
 
-        if ($fine->status === 'paid') {
-            throw new Exception('This fine has already been paid.');
-        }
+            if ($fine->status === 'paid') {
+                throw new Exception('This fine has already been paid.');
+            }
 
-        $fine->markAsPaid($paymentMethod);
+            // Get state context for logging
+            $stateInfo = 'N/A';
+            if ($fine->borrowing && $fine->borrowing->book) {
+                $context = new BorrowingContext($fine->borrowing->book, $fine->borrowing);
+                $stateInfo = $context->getStateName();
+            }
 
-        // Update borrowing fine_paid status
-        $borrowing = $fine->borrowing;
-        $unpaidFinesForBorrowing = Fine::where('borrowing_id', $borrowing->id)
-            ->where('status', 'unpaid')
-            ->count();
+            // Update fine as paid
+            $fine->update([
+                'status' => 'paid',
+                'paid_date' => now(),
+                'payment_method' => $paymentMethod,
+            ]);
 
-        if ($unpaidFinesForBorrowing === 0) {
-            $borrowing->update(['fine_paid' => true]);
-        }
+            // Update borrowing fine_paid status
+            if ($fine->borrowing) {
+                $unpaidFinesForBorrowing = Fine::where('borrowing_id', $fine->borrowing_id)
+                    ->where('status', 'unpaid')
+                    ->count();
 
-        return $fine;
+                if ($unpaidFinesForBorrowing === 0) {
+                    $fine->borrowing->update(['fine_paid' => true]);
+                }
+            }
+
+            Log::info('State Pattern [PAY_FINE]: Fine paid', [
+                'fine_id' => $fineId,
+                'user_id' => $fine->user_id,
+                'amount' => $fine->amount,
+                'payment_method' => $paymentMethod,
+                'borrowing_state' => $stateInfo
+            ]);
+
+            return $fine->fresh(['borrowing.book', 'user']);
+        });
     }
 
     /**
-     * Notify next person in reservation queue
+     * Get borrowing history with state information
      */
-    protected function notifyNextReservation($bookId)
+    public function getBorrowingHistoryWithStates($userId = null, $isStaff = false)
     {
-        $nextReservation = Reservation::where('book_id', $bookId)
-            ->where('status', 'active')
-            ->orderBy('queue_position')
-            ->first();
+        $query = Borrowing::with(['book', 'user', 'fines']);
 
-        if ($nextReservation) {
-            // Extend expiry for pickup
-            $nextReservation->update([
-                'expiry_date' => now()->addDays($this->reservationExpiryDays),
-                'notes' => 'Book is now available for pickup!',
-            ]);
+        if (!$isStaff && $userId) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->orderBy('borrow_date', 'desc')
+            ->get()
+            ->map(function ($borrowing) {
+                // === STATE PATTERN: Get state for each borrowing ===
+                $context = new BorrowingContext($borrowing->book, $borrowing);
+
+                return [
+                    'id' => $borrowing->id,
+                    'user' => $borrowing->user,
+                    'book' => $borrowing->book,
+                    'borrow_date' => $borrowing->borrow_date,
+                    'due_date' => $borrowing->due_date,
+                    'return_date' => $borrowing->return_date,
+                    'status' => $borrowing->status,
+                    'fine_amount' => $borrowing->fine_amount,
+                    'fines' => $borrowing->fines,
+                    // State Pattern info
+                    'current_state' => $context->getStateName(),
+                    'can_return' => $context->canReturn(),
+                    'can_renew' => $context->canRenew(),
+                    'is_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast(),
+                    'days_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast()
+                        ? now()->diffInDays($borrowing->due_date) : 0,
+                ];
+            });
+    }
+
+    /**
+     * Get fines with state information
+     */
+    public function getFinesWithStates($userId = null, $isStaff = false)
+    {
+        $query = Fine::with(['borrowing.book', 'borrowing.user', 'user']);
+
+        if (!$isStaff && $userId) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($fine) {
+                // === STATE PATTERN: Get state context ===
+                $stateInfo = 'N/A';
+                if ($fine->borrowing && $fine->borrowing->book) {
+                    $context = new BorrowingContext($fine->borrowing->book, $fine->borrowing);
+                    $stateInfo = $context->getStateName();
+                }
+
+                return [
+                    'id' => $fine->id,
+                    'user' => $fine->user,
+                    'borrowing' => $fine->borrowing,
+                    'amount' => $fine->amount,
+                    'reason' => $fine->reason,
+                    'status' => $fine->status,
+                    'paid_date' => $fine->paid_date,
+                    'payment_method' => $fine->payment_method,
+                    'created_at' => $fine->created_at,
+                    // State Pattern info
+                    'borrowing_state' => $stateInfo,
+                    'fine_origin' => 'Generated from Overdue state transition'
+                ];
+            });
+    }
+
+    /**
+     * Get book availability with state information
+     */
+    public function getBookAvailabilityWithState($bookId)
+    {
+        $book = Book::with(['activeBorrowing.user', 'activeReservations.user'])
+            ->findOrFail($bookId);
+
+        // === STATE PATTERN: Get current state ===
+        $context = new BorrowingContext($book);
+
+        return [
+            'book' => $book,
+            'current_state' => $context->getStateName(),
+            'can_borrow' => $context->canBorrow(),
+            'can_return' => $context->canReturn(),
+            'can_renew' => $context->canRenew(),
+            'is_available' => $context->canBorrow(),
+            'current_borrower' => $book->activeBorrowing?->user,
+            'due_date' => $book->activeBorrowing?->due_date,
+            'reservation_count' => $book->activeReservations->count(),
+        ];
+    }
+
+    /**
+     * Get overdue borrowings with state information
+     */
+    public function getOverdueBorrowingsWithStates()
+    {
+        return Borrowing::where('status', 'borrowed')
+            ->where('due_date', '<', now())
+            ->with(['user', 'book'])
+            ->get()
+            ->map(function ($borrowing) {
+                $context = new BorrowingContext($borrowing->book, $borrowing);
+                return [
+                    'borrowing' => $borrowing,
+                    'current_state' => $context->getStateName(),
+                    'days_overdue' => now()->diffInDays($borrowing->due_date),
+                    'estimated_fine' => now()->diffInDays($borrowing->due_date) * $this->fineRatePerDay,
+                ];
+            });
+    }
+
+    /**
+     * Create reservation subject with observers (Observer Pattern)
+     */
+    protected function createReservationSubject(Book $book): ReservationSubject
+    {
+        $subject = new ReservationSubject($book);
+        $subject->attach(new EmailNotificationObserver());
+        $subject->attach(new LoggingObserver());
+        return $subject;
+    }
+
+    /**
+     * Validate user eligibility to borrow
+     */
+    protected function validateBorrowingEligibility(User $user): void
+    {
+        $activeCount = $user->activeBorrowings()->count();
+        $maxLimit = $user->isStudent() ? 3 : 5;
+
+        if ($activeCount >= $maxLimit) {
+            throw new Exception("Maximum borrowing limit ({$maxLimit} books) reached.");
+        }
+
+        if ($user->getTotalUnpaidFines() > 0) {
+            throw new Exception('Please pay outstanding fines before borrowing.');
         }
     }
+
+    /**
+     * Validate user eligibility to reserve
+     */
+    protected function validateReservationEligibility(User $user, Book $book): void
+    {
+        $bookHasReservation = Reservation::where('book_id', $book->bookId)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($bookHasReservation) {
+            throw new Exception('This book already has an active reservation.');
+        }
+
+        $userHasReservation = Reservation::where('user_id', $user->id)
+            ->where('book_id', $book->bookId)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($userHasReservation) {
+            throw new Exception('You already have an active reservation for this book.');
+        }
+
+        if ($user->activeReservations()->count() >= 3) {
+            throw new Exception('Maximum 3 active reservations allowed.');
+        }
+    }
+
 
     /**
      * Get user's borrowing history
@@ -391,15 +589,14 @@ class BorrowingService
      */
     public function getBookAvailability($bookId)
     {
-        // Get book data via API
-        $book = $this->bookApiClient->getBook($bookId);
-        
+        $book = Book::findOrFail($bookId);
+
         // Get borrowing and reservation data from local DB
         $activeBorrowing = Borrowing::where('book_id', $bookId)
             ->where('status', 'borrowed')
             ->with('user')
             ->first();
-            
+
         $activeReservations = Reservation::where('book_id', $bookId)
             ->where('status', 'active')
             ->with('user')
@@ -408,8 +605,8 @@ class BorrowingService
 
         return [
             'book' => $book,
-            'is_available' => $book['status'] === 'Available',
-            'is_borrowed' => $book['status'] === 'Borrowed',
+            'is_available' => $book->status === 'Available',
+            'is_borrowed' => $book->status === 'Borrowed',
             'current_borrower' => $activeBorrowing?->user,
             'due_date' => $activeBorrowing?->due_date,
             'reservation_count' => $activeReservations->count(),

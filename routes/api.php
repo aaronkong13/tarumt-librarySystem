@@ -19,26 +19,43 @@ use App\Http\Controllers\Api\UserApiController;
 |
 */
 
+
+// =====================================================================
+// BORROWING API ENDPOINTS (REST)
+// =====================================================================
+Route::prefix('borrowings')->middleware(['auth:sanctum'])->group(function () {
+    Route::post('/borrow', [\App\Http\Controllers\BorrowingController::class, 'borrow']);
+    Route::post('/{borrowing}/return', [\App\Http\Controllers\BorrowingController::class, 'return']);
+    Route::post('/{borrowing}/renew', [\App\Http\Controllers\BorrowingController::class, 'renew']);
+    Route::get('/history', [\App\Http\Controllers\BorrowingController::class, 'myHistory']);
+    Route::get('/fines', [\App\Http\Controllers\BorrowingController::class, 'myFines']);
+    Route::post('/fines/{fine}/pay', [\App\Http\Controllers\BorrowingController::class, 'payFine']);
+    Route::post('/reserve', [\App\Http\Controllers\BorrowingController::class, 'reserve']);
+    Route::delete('/reservations/{reservation}', [\App\Http\Controllers\BorrowingController::class, 'cancelReservation']);
+    Route::get('/books/{book}/availability', [\App\Http\Controllers\BorrowingController::class, 'checkAvailability']);
+    Route::get('/overdue', [\App\Http\Controllers\BorrowingController::class, 'overdueList'])->middleware('check.staff');
+});
+
 Route::middleware(['web'])->group(function () {
 
     // =====================================================================
     // BOOK API ENDPOINTS (REST)
     // =====================================================================
-    
+
     Route::prefix('books')->group(function () {
-        
+
         // List all books with filtering
         Route::get('/', [BookApiController::class, 'index'])
             ->name('api.books.index');
-        
+
         // Get books by status
         Route::get('/status/{status}', [BookApiController::class, 'getByStatus'])
             ->name('api.books.status');
-        
+
         // Get books by category
         Route::get('/category/{category}', [BookApiController::class, 'getByCategory'])
             ->name('api.books.category');
-        
+
         // Get book statistics
         Route::get('/stats/overview', [BookApiController::class, 'stats'])
             ->name('api.books.stats');
@@ -46,19 +63,19 @@ Route::middleware(['web'])->group(function () {
         // Get borrowing history for a book (must come before /{id})
         Route::get('/{id}/borrowing-history', [BookApiController::class, 'borrowingHistory'])
             ->name('api.books.borrowing-history');
-        
+
         // Get single book by ID
         Route::get('/{id}', [BookApiController::class, 'show'])
             ->name('api.books.show');
-        
+
         // Create a new book
         Route::post('/', [BookApiController::class, 'store'])
             ->name('api.books.store');
-        
+
         // Update a book
         Route::put('/{id}', [BookApiController::class, 'update'])
             ->name('api.books.update');
-        
+
         // Delete a book
         Route::delete('/{id}', [BookApiController::class, 'destroy'])
             ->name('api.books.destroy');
@@ -67,37 +84,37 @@ Route::middleware(['web'])->group(function () {
     // =====================================================================
     // USER API ENDPOINTS (REST)
     // =====================================================================
-    
+
     Route::prefix('users')->group(function () {
-        
+
         // List all users with pagination
         Route::get('/', [UserApiController::class, 'index'])
             ->name('api.users.index');
-        
+
         // Get single user by ID
         Route::get('/{id}', [UserApiController::class, 'show'])
             ->name('api.users.show');
-        
+
         // Create a new user
         Route::post('/', [UserApiController::class, 'store'])
             ->name('api.users.store');
-        
+
         // Update a user
         Route::put('/{id}', [UserApiController::class, 'update'])
             ->name('api.users.update');
-        
+
         // Delete a user
         Route::delete('/{id}', [UserApiController::class, 'destroy'])
             ->name('api.users.destroy');
-        
+
         // Get users by role
         Route::get('/role/{role}', [UserApiController::class, 'getByRole'])
             ->name('api.users.role');
-        
+
         // Search users by name or email
         Route::get('/search/query', [UserApiController::class, 'search'])
             ->name('api.users.search');
-        
+
         // Get user statistics
         Route::get('/stats/overview', [UserApiController::class, 'stats'])
             ->name('api.users.stats');
@@ -106,39 +123,39 @@ Route::middleware(['web'])->group(function () {
     // =====================================================================
     // RESERVATION API ENDPOINTS (REST)
     // =====================================================================
-    
+
     Route::prefix('reservations')->group(function () {
-        
+
         // Create a new reservation (Student only)
         Route::post('/', [\App\Http\Controllers\ReservationController::class, 'store'])
             ->name('api.reservations.store')
             ->middleware('auth');
-        
+
         // Cancel a reservation (Student only - own reservations)
         Route::delete('/{id}', [\App\Http\Controllers\ReservationController::class, 'destroy'])
             ->name('api.reservations.destroy')
             ->middleware('auth');
-        
+
         // Get current user's active reservations
         Route::get('/my-reservations', [\App\Http\Controllers\ReservationController::class, 'myReservations'])
             ->name('api.reservations.my-reservations')
             ->middleware('auth');
-        
+
         // Get current user's notifications
         Route::get('/my-notifications', [\App\Http\Controllers\ReservationController::class, 'myNotifications'])
             ->name('api.reservations.my-notifications')
             ->middleware('auth');
-        
+
         // View reservation queue for a specific book (Student can see own position)
         Route::get('/queue/{bookId}', [\App\Http\Controllers\ReservationController::class, 'viewQueue'])
             ->name('api.reservations.queue')
             ->middleware('auth');
-        
+
         // View all reservation queues (Staff only)
         Route::get('/queues/all', [\App\Http\Controllers\ReservationController::class, 'allQueues'])
             ->name('api.reservations.all-queues')
             ->middleware('auth');
-        
+
         // Get reservation statistics
         Route::get('/stats/overview', [\App\Http\Controllers\ReservationController::class, 'stats'])
             ->name('api.reservations.stats')
