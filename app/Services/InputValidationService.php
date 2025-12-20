@@ -64,6 +64,7 @@ class InputValidationService
             'phone' => 'nullable|string|max:20|regex:/^[0-9\-\+\(\)\s]+$/',
             'address' => 'nullable|string|max:500',
             'password' => 'nullable|string|min:8|confirmed',
+            'role' => 'nullable|string|in:Student,Staff',
         ], [
             'name.required' => 'Name is required.',
             'name.min' => 'Name must be at least 2 characters.',
@@ -73,6 +74,7 @@ class InputValidationService
             'phone.regex' => 'Please provide a valid phone number.',
             'password.min' => 'Password must be at least 8 characters.',
             'password.confirmed' => 'Password confirmation does not match.',
+            'role.in' => 'Role must be Student or Staff.',
         ]);
 
         if ($validator->fails()) {

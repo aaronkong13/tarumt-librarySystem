@@ -87,6 +87,11 @@ class UserFactory
             'address' => $data['address'] ?? $user->address,
         ];
 
+        // Update role if provided
+        if (isset($data['role'])) {
+            $updateData['role'] = $data['role'];
+        }
+
         // Only update password if provided
         if (!empty($data['password'])) {
             $updateData['password'] = Hash::make($data['password']);

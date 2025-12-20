@@ -41,8 +41,8 @@ class UserController extends Controller
             // Access Control: Only Staff and Admin can view all users
             AccessControlService::authorize('view', 'all_users');
 
-            // Get filtered users from service (all queries executed in service layer)
-            $users = $this->userService->getFilteredUsers($request, 10);
+            // Get filtered users from service (5 users per page)
+            $users = $this->userService->getFilteredUsers($request, 5);
 
             // Return JSON for AJAX requests
             if ($request->wantsJson() || $request->ajax()) {
@@ -181,14 +181,7 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to edit this profile.');
             }
 
-            // Get borrowing history if viewing a student (for Staff/Admin)
-            $borrowingHistory = null;
-            if ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin())) {
-                $borrowingService = app(\App\Services\BorrowingService::class);
-                $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
-            }
-
-            return view('users.show', compact('user', 'borrowingHistory'));
+            return view('users.edit', compact('user'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -220,6 +213,13 @@ class UserController extends Controller
 
             $validatedData = InputValidationService::validateProfileUpdate($request->all(), $user->id);
 
+            // Only admin can change role
+            if (isset($validatedData['role']) && $validatedData['role'] !== $user->role) {
+                if (!Auth::user() || Auth::user()->role !== 'Admin') {
+                    throw new \Exception('Only administrators can change user roles.');
+                }
+            }
+
             // Factory Pattern: Update user
             UserFactory::update($user, $validatedData);
             
@@ -238,7 +238,7 @@ class UserController extends Controller
     /**
      * Deactivate the specified user (soft delete)
      */
-    public function deactivate(Request $request, $id)
+    public function destroy(Request $request, $id)
     {
         try {
             // Use service to get user

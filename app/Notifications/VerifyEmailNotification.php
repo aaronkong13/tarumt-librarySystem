@@ -44,7 +44,7 @@ class VerifyEmailNotification extends Notification
             ->line('Thank you for registering with BookHub Library System.')
             ->line('Please click the button below to verify your email address.')
             ->action('Verify Email Address', $verificationUrl)
-            ->line('This verification link will expire in 60 minutes.')
+            ->line('This verification link will expire in 5 minutes.')
             ->line('If you did not create an account, no further action is required.')
             ->salutation('Best regards, BookHub Team');
     }
@@ -56,7 +56,7 @@ class VerifyEmailNotification extends Notification
     {
         return URL::temporarySignedRoute(
             'verification.verify',
-            Carbon::now()->addMinutes(60),
+            Carbon::now()->addMinutes(5),
             [
                 'id' => $notifiable->getKey(),
                 'hash' => sha1($notifiable->getEmailForVerification()),
