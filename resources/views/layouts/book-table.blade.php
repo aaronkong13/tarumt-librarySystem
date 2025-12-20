@@ -275,11 +275,8 @@ function openBorrowingHistoryModal(bookId, bookTitle) {
     document.getElementById('historyBookTitle').textContent = bookTitle;
     document.getElementById('borrowingHistoryContainer').innerHTML = '<div class="text-center py-8"><i class="fa-solid fa-spinner fa-spin text-gray-400 text-2xl"></i></div>';
     
-    // Use API_URL from config (allows frontend/backend separation on different ports)
-    const apiUrl = '{{ config("app.api_url") ?? config("app.url") }}';
-    
     // Fetch borrowing history from controller
-    fetch(`${apiUrl}/api/books/${bookId}/borrowing-history`, {
+    fetch(`/api/books/${bookId}/borrowing-history`, {
         headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',

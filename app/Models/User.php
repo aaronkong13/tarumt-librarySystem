@@ -28,7 +28,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'address',
         'status',
         'profile_image',
-        'api_token',  // ← For API authentication
     ];
 
     /**

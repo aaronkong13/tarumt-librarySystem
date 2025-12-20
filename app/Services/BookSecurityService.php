@@ -5,7 +5,6 @@ namespace App\Services;
 use Illuminate\Http\UploadedFile;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class BookSecurityService
 {
@@ -118,33 +117,23 @@ class BookSecurityService
     public function validateCoverImage(UploadedFile $file)
     {
         if (!$file->isValid()) {
-            throw ValidationException::withMessages([
-                'cover' => 'File upload error. Please try again.'
-            ]);
+            throw new Exception("File upload error.");
         }
 
         // Whitelist of allowed image types
-        $allowedMimeTypes = [
-            'image/jpeg', 'image/jpg', 'image/pjpeg',
-            'image/png', 'image/x-png',
-            'image/gif'
-        ];
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
         
         // OWASP [183]: Validate uploaded files by checking file headers.
         $mimeType = $file->getMimeType();
 
         if (!in_array($mimeType, $allowedMimeTypes)) {
             Log::error("Security Alert: Suspicious file upload attempt: $mimeType");
-            throw ValidationException::withMessages([
-                'cover' => 'Invalid file type. Only JPG, PNG, or GIF allowed.'
-            ]);
+            throw new Exception("Invalid file type. Only JPG, PNG, or GIF allowed.");
         }
 
         // Limit file size (2MB)
         if ($file->getSize() > 2 * 1024 * 1024) {
-            throw ValidationException::withMessages([
-                'cover' => 'File size too large (Max 2MB).'
-            ]);
+            throw new Exception("File size too large (Max 2MB).");
         }
 
         return true;
