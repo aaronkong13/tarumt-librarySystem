@@ -123,6 +123,9 @@ class UserController extends Controller
                 throw new \Exception('Invalid role specified.');
             }
 
+            // Mark email as verified immediately (no verification needed for Staff/Admin created users)
+            $user->markEmailAsVerified();
+
             return redirect()->route('users.index')->with('success', 'User created successfully.');
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->validator)->withInput();
@@ -148,7 +151,14 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to view this profile.');
             }
 
-            return view('users.show', compact('user'));
+            // Get borrowing history if viewing a student (for Staff/Admin)
+            $borrowingHistory = null;
+            if ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin())) {
+                $borrowingService = app(\App\Services\BorrowingService::class);
+                $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
+            }
+
+            return view('users.show', compact('user', 'borrowingHistory'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -171,7 +181,14 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to edit this profile.');
             }
 
-            return view('users.edit', compact('user'));
+            // Get borrowing history if viewing a student (for Staff/Admin)
+            $borrowingHistory = null;
+            if ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin())) {
+                $borrowingService = app(\App\Services\BorrowingService::class);
+                $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
+            }
+
+            return view('users.show', compact('user', 'borrowingHistory'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -295,7 +312,15 @@ class UserController extends Controller
     public function showProfile()
     {
         $user = Auth::user();
-        return view('users.profile', compact('user'));
+        
+        // Get borrowing history for students only
+        $borrowingHistory = null;
+        if ($user->isStudent()) {
+            $borrowingService = app(\App\Services\BorrowingService::class);
+            $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
+        }
+        
+        return view('users.profile', compact('user', 'borrowingHistory'));
     }
 
     /**
