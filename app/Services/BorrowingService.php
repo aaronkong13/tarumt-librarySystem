@@ -187,24 +187,32 @@ class BorrowingService
                 ->whereIn('status', ['waiting', Reservation::STATUS_WAITING])
                 ->exists();
 
+            $apiUrl = config('app.api_url', config('app.url'));
+            $newStatus = 'Available';
+            
             if ($hasReservation) {
                 // Book stays as 'Reserved' for the next person in queue
                 $reservationService = app(ReservationService::class);
                 $nextReservation = $reservationService->notifyNextInQueue($book);
 
                 if ($nextReservation) {
-                    $book->update(['status' => 'Reserved']);
+                    $newStatus = 'Reserved';
                     Log::info('Book reserved for next user in queue', [
                         'book_id' => $book->bookId,
                         'reservation_id' => $nextReservation->id,
                         'user_id' => $nextReservation->user_id
                     ]);
-                } else {
-                    $book->update(['status' => 'Available']);
                 }
-            } else {
-                // No reservations, book becomes available
-                $book->update(['status' => 'Available']);
+            }
+            
+            // Update book status via API (cross-module: Borrowing → Book)
+            try {
+                Http::put("{$apiUrl}/api/books/{$book->bookId}", ['status' => $newStatus]);
+            } catch (Exception $e) {
+                Log::error('Failed to update book status via API', [
+                    'book_id' => $book->bookId,
+                    'error' => $e->getMessage()
+                ]);
             }
 
             Log::info('State Pattern [RETURN]: State transition completed', [
@@ -238,8 +246,13 @@ class BorrowingService
                 throw new Exception("User not found");
             }
             
-            // Get models for transaction
-            $book = Book::findOrFail($bookId);
+            // Reconstruct book model from API data for State Pattern
+            $bookData = $bookResponse->json()['data'];
+            $book = new Book((array)$bookData);
+            $book->exists = true;
+            $book->bookId = $bookData['bookId'];
+            
+            // Get user model
             $user = User::findOrFail($userId);
 
             // === STATE PATTERN: Check if book is borrowed ===
@@ -711,11 +724,16 @@ class BorrowingService
      */
     public function getBookAvailability($bookId)
     {
-        // Validate book exists via API (cross-module)
-        $bookData = $this->getBookFromApi($bookId);
+        // Get book data via API (cross-module: Borrowing → Book)
+        $apiUrl = config('app.api_url', config('app.url'));
+        $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
         
-        // Get model for detailed queries
-        $book = Book::findOrFail($bookId);
+        if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
+            throw new Exception("Book not found");
+        }
+        
+        $bookData = $bookResponse->json()['data'];
+        $book = (object)$bookData;
 
         // Get borrowing and reservation data from local DB
         $activeBorrowing = Borrowing::where('book_id', $bookId)

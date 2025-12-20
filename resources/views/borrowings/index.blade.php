@@ -56,16 +56,13 @@
 
                 <!-- Stats Cards -->
                 @php
-                    $allBorrowings = App\Models\Borrowing::where('status', 'borrowed')->with(['book', 'user'])->orderBy('due_date')->get();
+                    // Borrowing stats (same module - direct access OK)
+                    $allBorrowings = App\Models\Borrowing::where('status', 'borrowed')->with(['user'])->orderBy('due_date')->get();
                     $overdueCount = $allBorrowings->filter(fn($b) => $b->due_date->isPast())->count();
 
-                    // Get ready for pickup via API query (same logic as API endpoint)
+                    // Reservation stats (same module - direct access OK)
                     $reservedAvailableBooks = App\Models\Reservation::whereIn('status', ['waiting', 'notified', 'active'])
-                        ->with(['book', 'user'])
-                        ->whereHas('book', function($q) {
-                            $q->whereIn('status', ['Available', 'Reserved'])
-                              ->whereDoesntHave('borrowings', fn($bq) => $bq->where('status', 'borrowed'));
-                        })
+                        ->with(['user'])
                         ->orderBy('book_id')
                         ->orderBy('queue_position')
                         ->get()
@@ -73,16 +70,10 @@
                         ->map(fn($group) => $group->first())
                         ->values();
 
-                    // Get book IDs that have reservations ready for pickup
-                    $reservedBookIds = $reservedAvailableBooks->pluck('book_id')->toArray();
-
-                    // Available books WITHOUT any active reservations
-                    $availableBooks = App\Models\Book::where('status', 'Available')
-                        ->whereDoesntHave('borrowings', fn($q) => $q->where('status', 'borrowed'))
-                        ->whereNotIn('bookId', $reservedBookIds)
-                        ->get();
-
                     $activeReservations = App\Models\Reservation::whereIn('status', ['waiting', 'notified', 'active'])->count();
+                    
+                    // Available books from controller (fetched via BookApiController)
+                    // $availableBooks is passed from controller
                 @endphp
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -112,7 +103,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-500">Available Books</p>
-                                <p class="text-3xl font-bold text-green-600">{{ $availableBooks->count() }}</p>
+                                <p class="text-3xl font-bold text-green-600">{{ count($availableBooks) }}</p>
                             </div>
                             <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                                 <i class="fa-solid fa-book text-green-600"></i>
@@ -220,15 +211,19 @@
                         </h3>
                     </div>
                     <div class="p-6">
-                        @if($availableBooks->isEmpty())
+                        @if(empty($availableBooks))
                             <p class="text-gray-500 text-center py-8">No books available at the moment.</p>
                         @else
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 @foreach($availableBooks as $book)
+                                    @php
+                                        // Convert array to object for easier access
+                                        $bookObj = is_array($book) ? (object)$book : $book;
+                                    @endphp
                                     <div class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                                         <div class="flex items-start gap-3 mb-3">
-                                            @if($book->cover_image)
-                                                <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}"
+                                            @if(isset($bookObj->cover_image) && $bookObj->cover_image)
+                                                <img src="{{ $bookObj->cover_image }}"
                                                      class="w-16 h-20 object-cover rounded-lg">
                                             @else
                                                 <div class="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -236,13 +231,13 @@
                                                 </div>
                                             @endif
                                             <div class="flex-1 min-w-0">
-                                                <h4 class="font-semibold text-gray-900 text-sm truncate">{{ $book->title }}</h4>
-                                                <p class="text-xs text-gray-500 truncate">{{ $book->author }}</p>
+                                                <h4 class="font-semibold text-gray-900 text-sm truncate">{{ $bookObj->title }}</h4>
+                                                <p class="text-xs text-gray-500 truncate">{{ $bookObj->author }}</p>
                                             </div>
                                         </div>
                                         <form action="{{ route('borrowings.borrow') }}" method="POST">
                                             @csrf
-                                            <input type="hidden" name="book_id" value="{{ $book->bookId }}">
+                                            <input type="hidden" name="book_id" value="{{ $bookObj->bookId }}">
                                             @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
                                                 <div class="mb-2">
                                                     <input type="number" name="user_id" placeholder="User ID" required

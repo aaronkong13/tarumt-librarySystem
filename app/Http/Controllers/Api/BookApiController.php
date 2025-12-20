@@ -304,6 +304,89 @@ class BookApiController extends Controller
     }
 
     /**
+     * GET /api/books/available
+     * Get all available books (for borrowing module)
+     */
+    public function getAvailableBooks(): JsonResponse
+    {
+        try {
+            $books = $this->bookService->getBooksByStatus('Available');
+            
+            // Clean and format books - test each field
+            $formattedBooks = [];
+            
+            foreach ($books as $book) {
+                $item = [];
+                
+                // Test each field individually
+                try {
+                    // Convert binary image to base64 for JSON transmission
+                    $coverImage = '';
+                    if (!empty($book->cover_image)) {
+                        // If it's binary data, convert to base64
+                        if (!mb_check_encoding($book->cover_image, 'UTF-8')) {
+                            $coverImage = 'data:image/jpeg;base64,' . base64_encode($book->cover_image);
+                        } else {
+                            // If it's already a string path, use as is
+                            $coverImage = $book->cover_image;
+                        }
+                    }
+                    
+                    $item['bookId'] = $book->bookId;
+                    $item['title'] = $book->title ?? '';
+                    $item['author'] = $book->author ?? '';
+                    $item['isbn'] = $book->isbn ?? '';
+                    $item['category'] = $book->category ?? '';
+                    $item['year'] = $book->year ?? '';
+                    $item['status'] = $book->status ?? 'Available';
+                    $item['cover_image'] = $coverImage;
+                    
+                    $formattedBooks[] = $item;
+                } catch (\Exception $e) {
+                    \Log::error('Error processing book ID ' . $book->bookId . ': ' . $e->getMessage());
+                    continue;
+                }
+            }
+
+            // Clear output buffer to remove any BOM or whitespace
+            if (ob_get_level()) ob_clean();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Available books retrieved successfully',
+                'data' => $formattedBooks,
+            ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
+        } catch (\Exception $e) {
+            \Log::error('Error in getAvailableBooks: ' . $e->getMessage());
+            \Log::error('Line: ' . $e->getLine());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving available books',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Clean UTF-8 encoding for text fields
+     */
+    private function cleanUtf8($text)
+    {
+        if (empty($text)) {
+            return '';
+        }
+        
+        // Remove any non-UTF-8 characters
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        
+        // Additional cleaning: remove control characters except newlines/tabs
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
+        
+        return $text;
+    }
+
+    /**
      * GET /api/books/category/{category}
      * Get books by category
      */

@@ -69,6 +69,17 @@ Route::middleware(['web'])->group(function () {
     });
 
     // =====================================================================
+    // BOOK API ENDPOINTS (for cross-module access)
+    // Note: Using 'web' middleware only for session-based cross-origin requests
+    // =====================================================================
+    Route::prefix('books')->group(function () {
+        // Get available books (for borrowing module)
+        // No auth required since it's read-only data and called from authenticated frontend
+        Route::get('/available', [BookApiController::class, 'getAvailableBooks'])
+            ->name('api.books.available');
+    });
+
+    // =====================================================================
     // BOOK API ENDPOINTS (REST)
     // =====================================================================
     // ALL endpoints require authentication (login or API token)

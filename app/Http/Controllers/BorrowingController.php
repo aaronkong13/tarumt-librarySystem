@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\BorrowingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Exception;
 
 /**
@@ -30,7 +31,39 @@ class BorrowingController extends Controller
      */
     public function index()
     {
-        return view('borrowings.index');
+        // Fetch available books via BookApiController::getAvailableBooks() (cross-module: Borrowing → Book)
+        $apiUrl = config('app.api_url', config('app.url'));
+        $availableBooks = [];
+        
+        try {
+            $response = Http::get("{$apiUrl}/api/books/available");
+            
+            if ($response->successful()) {
+                $jsonData = $response->json();
+                
+                if ($jsonData && isset($jsonData['success']) && $jsonData['success']) {
+                    $availableBooks = $jsonData['data'] ?? [];
+                } else {
+                    \Log::error('API returned unsuccessful response', [
+                        'status' => $response->status(),
+                        'json' => $jsonData
+                    ]);
+                }
+            } else {
+                \Log::error('API call failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (Exception $e) {
+            // Handle API error gracefully
+            \Log::error('Exception calling books API: ' . $e->getMessage());
+            $availableBooks = [];
+        }
+        
+        return view('borrowings.index', [
+            'availableBooks' => $availableBooks
+        ]);
     }
 
     /**
