@@ -57,6 +57,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [UserController::class, 'showProfile'])->name('profile.show');
     Route::get('/profile/edit', [UserController::class, 'editProfile'])->name('profile.edit');
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+    
+    // --- API Token Generation Route ---
+    Route::post('/api/generate-token', [UserController::class, 'generateApiToken'])->name('api.generate-token');
 
     // --- User Profile Routes (must be after /users/create) ---
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');

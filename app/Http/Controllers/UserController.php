@@ -11,17 +11,16 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * User Management Controller (INTERNAL MODULE ACCESS)
+ * User Management Controller (WEB UI ONLY)
  * 
  * This controller handles web-based user management operations.
- * Uses UserService for DIRECT database access (internal module).
+ * Returns Blade views for browser rendering.
  * 
- * External modules should NOT call this controller directly.
- * They should use UserApiClient -> UserApiController -> UserService.
+ * For API/JSON endpoints, use Api\UserApiController instead.
  * 
  * Architecture:
- * - Internal: UserController -> UserService (Direct DB) -> User Model -> Database
- * - External: Other Modules -> UserApiClient (HTTP) -> /api/users/* -> UserApiController -> UserService
+ * - Web UI: Browser -> routes/web.php -> UserController -> UserService -> Database
+ * - API: External/AJAX -> routes/api.php -> Api\UserApiController -> UserService -> Database
  */
 class UserController extends Controller
 {
@@ -34,6 +33,7 @@ class UserController extends Controller
 
     /**
      * Display a listing of all users (Staff and Admin)
+     * Returns HTML view for browser display
      */
     public function index(Request $request)
     {
@@ -44,36 +44,9 @@ class UserController extends Controller
             // Get filtered users from service (5 users per page)
             $users = $this->userService->getFilteredUsers($request, 5);
 
-            // Return JSON for AJAX requests
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json([
-                    'users' => $users->map(function($user) {
-                        return [
-                            'id' => $user->id,
-                            'name' => $user->name,
-                            'email' => $user->email,
-                            'phone' => $user->phone,
-                            'role' => $user->role,
-                            'status' => $user->deleted_at ? 'Inactive' : 'Active',
-                            'created_at' => $user->created_at->toISOString(),
-                            'profile_image' => $user->profile_image ? base64_encode($user->profile_image) : null,
-                            'can_view' => app(AccessControlService::class)->canViewUser($user),
-                            'can_edit' => app(AccessControlService::class)->canEditUser($user),
-                            'can_deactivate' => app(AccessControlService::class)->canDeactivateUser($user),
-                        ];
-                    }),
-                    'total' => $users->total(),
-                    'per_page' => $users->perPage(),
-                    'current_page' => $users->currentPage(),
-                    'last_page' => $users->lastPage(),
-                ]);
-            }
-
+            // Return Blade view with users data
             return view('users.index', compact('users'));
         } catch (\Exception $e) {
-            if ($request->wantsJson() || $request->ajax()) {
-                return response()->json(['error' => $e->getMessage()], 500);
-            }
             return redirect()->back()->with('error', $e->getMessage());
         }
     }

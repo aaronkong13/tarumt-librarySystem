@@ -23,6 +23,47 @@ class UserApiController extends Controller
     }
 
     /**
+     * Clean binary data from user model for JSON serialization
+     * Converts profile_image BLOB to base64 or removes it to prevent UTF-8 encoding errors
+     */
+    private function cleanUserData($users, $includeImage = true)
+    {
+        if ($users instanceof \Illuminate\Database\Eloquent\Collection) {
+            return $users->map(function($user) use ($includeImage) {
+                return $this->cleanSingleUser($user, $includeImage);
+            });
+        }
+
+        if ($users instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            $items = $users->items();
+            $cleaned = array_map(function($user) use ($includeImage) {
+                return $this->cleanSingleUser($user, $includeImage);
+            }, $items);
+            return $cleaned;
+        }
+
+        // Single user
+        return $this->cleanSingleUser($users, $includeImage);
+    }
+
+    /**
+     * Clean a single user object
+     */
+    private function cleanSingleUser($user, $includeImage = true)
+    {
+        if (is_object($user) && method_exists($user, 'toArray')) {
+            if ($user->profile_image && $includeImage) {
+                // Convert BLOB to base64 with data URI format (like BookApiController)
+                $user->profile_image = 'data:image/jpeg;base64,' . base64_encode($user->profile_image);
+            } else {
+                // Remove binary data
+                $user->profile_image = null;
+            }
+        }
+        return $user;
+    }
+
+    /**
      * GET /api/users
      * Get all users with pagination
      */
@@ -32,10 +73,13 @@ class UserApiController extends Controller
             $perPage = $request->query('per_page', 10);
             $users = $this->userService->getPaginatedUsers($perPage);
 
+            // Clean user data and include profile images as base64 (like BookApiController)
+            $cleanedUsers = $this->cleanUserData($users, true);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Users retrieved successfully',
-                'data' => $users->items(),
+                'data' => $cleanedUsers,
                 'pagination' => [
                     'total' => $users->total(),
                     'per_page' => $users->perPage(),
@@ -68,10 +112,13 @@ class UserApiController extends Controller
                 ], 404);
             }
 
+            // Clean user data and include profile image as base64
+            $cleanedUser = $this->cleanSingleUser($user, true);
+
             return response()->json([
                 'success' => true,
                 'message' => 'User retrieved successfully',
-                'data' => $user,
+                'data' => $cleanedUser,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -209,10 +256,13 @@ class UserApiController extends Controller
         try {
             $users = $this->userService->getUsersByRole($role);
 
+            // Clean user data and include profile images as base64
+            $cleanedUsers = $this->cleanUserData($users, true);
+
             return response()->json([
                 'success' => true,
                 'message' => "Users with role '$role' retrieved successfully",
-                'data' => $users,
+                'data' => $cleanedUsers,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -241,10 +291,13 @@ class UserApiController extends Controller
 
             $users = $this->userService->searchUsers($query);
 
+            // Clean user data and include profile images as base64
+            $cleanedUsers = $this->cleanUserData($users, true);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Search completed successfully',
-                'data' => $users,
+                'data' => $cleanedUsers,
             ]);
         } catch (\Exception $e) {
             return response()->json([

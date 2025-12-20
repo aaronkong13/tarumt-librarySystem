@@ -154,9 +154,11 @@ return [
     | available to. By default, the cookie will be available to the root
     | domain and all subdomains. Typically, this shouldn't be changed.
     |
+    | For cross-port communication (8000 ↔ 8001), set to 'localhost'
+    |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => env('SESSION_DOMAIN', 'localhost'),
 
     /*
     |--------------------------------------------------------------------------
@@ -193,13 +195,15 @@ return [
     | take place, and can be used to mitigate CSRF attacks. By default, we
     | will set this value to "lax" to permit secure cross-site requests.
     |
+    | For cross-port communication (8000 ↔ 8001), use 'none' with 'secure' => false
+    |
     | See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value
     |
     | Supported: "lax", "strict", "none", null
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    'same_site' => env('SESSION_SAME_SITE', 'none'),
 
     /*
     |--------------------------------------------------------------------------

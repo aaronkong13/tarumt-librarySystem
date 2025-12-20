@@ -127,30 +127,21 @@ Route::middleware(['web'])->group(function () {
     // =====================================================================
     // USER API ENDPOINTS (REST)
     // =====================================================================
+    // ALL endpoints require authentication (login or API token)
+    // Only authenticated users (Student/Staff/Admin) can access user data
+    // =====================================================================
 
-    Route::prefix('users')->group(function () {
+    Route::prefix('users')->middleware(['api_token_auth'])->group(function () {
 
-        // List all users with pagination
+        // ═════════════════════════════════════════════════════════════════
+        // READ ENDPOINTS (All authenticated users can read)
+        // ═════════════════════════════════════════════════════════════════
+
+        // List all users with pagination and filtering
         Route::get('/', [UserApiController::class, 'index'])
             ->name('api.users.index');
 
-        // Get single user by ID
-        Route::get('/{id}', [UserApiController::class, 'show'])
-            ->name('api.users.show');
-
-        // Create a new user
-        Route::post('/', [UserApiController::class, 'store'])
-            ->name('api.users.store');
-
-        // Update a user
-        Route::put('/{id}', [UserApiController::class, 'update'])
-            ->name('api.users.update');
-
-        // Delete a user
-        Route::delete('/{id}', [UserApiController::class, 'destroy'])
-            ->name('api.users.destroy');
-
-        // Get users by role
+        // Get users by role (Student/Staff/Admin)
         Route::get('/role/{role}', [UserApiController::class, 'getByRole'])
             ->name('api.users.role');
 
@@ -158,9 +149,31 @@ Route::middleware(['web'])->group(function () {
         Route::get('/search/query', [UserApiController::class, 'search'])
             ->name('api.users.search');
 
-        // Get user statistics
+        // Get user statistics (total users, by role, etc.)
         Route::get('/stats/overview', [UserApiController::class, 'stats'])
             ->name('api.users.stats');
+
+        // Get single user by ID (must come after search/stats routes)
+        Route::get('/{id}', [UserApiController::class, 'show'])
+            ->name('api.users.show');
+
+        // ═════════════════════════════════════════════════════════════════
+        // WRITE ENDPOINTS (Staff/Admin only)
+        // ═════════════════════════════════════════════════════════════════
+        Route::middleware(['check.staff'])->group(function () {
+
+            // Create a new user (Staff/Admin only)
+            Route::post('/', [UserApiController::class, 'store'])
+                ->name('api.users.store');
+
+            // Update a user (Staff/Admin only)
+            Route::put('/{id}', [UserApiController::class, 'update'])
+                ->name('api.users.update');
+
+            // Delete a user - soft delete (Staff/Admin only)
+            Route::delete('/{id}', [UserApiController::class, 'destroy'])
+                ->name('api.users.destroy');
+        });
     });
 
     // =====================================================================

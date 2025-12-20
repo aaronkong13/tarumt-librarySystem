@@ -12,12 +12,20 @@ class ApiTokenAuth
     /**
      * Handle an incoming request.
      * 
-     * Validates API token from Bearer header for external module access.
-     * If no token provided, checks session authentication (frontend access).
+     * Priority order:
+     * 1. Check session authentication first (for logged-in users from web)
+     * 2. Check Bearer token (for external API access)
+     * 3. Reject if neither is available
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Check Bearer token in Authorization header (external modules)
+        // Priority 1: Check session authentication first (logged-in users)
+        // This works for requests from authenticated web pages (like profile)
+        if (auth()->check()) {
+            return $next($request);
+        }
+
+        // Priority 2: Check Bearer token in Authorization header (external modules/apps)
         $token = $request->bearerToken();
 
         if ($token) {
@@ -37,15 +45,15 @@ class ApiTokenAuth
             return $next($request);
         }
 
-        // Fall back to session authentication (frontend from :8000)
-        if (auth()->check()) {
-            return $next($request);
-        }
-
-        // No authentication found
+        // Priority 3: No authentication found - reject request
         return response()->json([
             'success' => false,
             'message' => 'Unauthorized: Please login or provide API token',
+            'debug' => [
+                'session_exists' => $request->hasSession(),
+                'auth_check' => auth()->check(),
+                'has_bearer_token' => $request->bearerToken() !== null,
+            ]
         ], 401);
     }
 }
