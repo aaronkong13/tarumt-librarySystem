@@ -116,6 +116,12 @@ class BookApiController extends Controller
                 $book->cover_image = null;
             }
 
+            // Clear ALL output buffers to remove any BOM or whitespace
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            ob_start();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Book retrieved successfully',
@@ -348,8 +354,11 @@ class BookApiController extends Controller
                 }
             }
 
-            // Clear output buffer to remove any BOM or whitespace
-            if (ob_get_level()) ob_clean();
+            // Clear ALL output buffers to remove any BOM or whitespace
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            ob_start();
             
             return response()->json([
                 'success' => true,

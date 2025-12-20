@@ -48,35 +48,22 @@ class BorrowingService
         $durationDays = $durationDays ?? $this->defaultBorrowDays;
 
         return DB::transaction(function () use ($userId, $bookId, $durationDays) {
-            // Get book and user data from API (cross-module) - Call BookApiController & UserApiController
-            $apiUrl = config('app.api_url', config('app.url'));
-            
-            $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
-            if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
-                throw new Exception("Book not found or unavailable");
+            // Get book directly (same application - direct access OK)
+            $book = Book::find($bookId);
+            if (!$book) {
+                throw new Exception("Book not found");
             }
-            $bookData = $bookResponse->json()['data'];
             
-            $userResponse = Http::get("{$apiUrl}/api/users/{$userId}");
-            if (!$userResponse->successful() || !$userResponse->json()['success']) {
+            // Get user directly (same application - direct access OK)
+            $user = User::find($userId);
+            if (!$user) {
                 throw new Exception("User not found");
             }
-            $userData = $userResponse->json()['data'];
-            
-            // Reconstruct Book model from API data (for State Pattern)
-            $book = new Book((array)$bookData);
-            $book->exists = true; // Mark as existing record
-            $book->bookId = $bookData['bookId'];
-            
-            // Reconstruct User model from API data
-            $user = new User((array)$userData);
-            $user->exists = true;
-            $user->id = $userData['id'];
 
             // === STATE PATTERN: Create context and check state ===
             $context = new BorrowingContext($book);
 
-            Log::info('State Pattern [BORROW]: Checking book state via API data', [
+            Log::info('State Pattern [BORROW]: Checking book state', [
                 'book_id' => $book->bookId,
                 'current_state' => $context->getStateName(),
                 'can_borrow' => $context->canBorrow()
@@ -102,20 +89,15 @@ class BorrowingService
                 'status' => 'borrowed',
             ]);
 
-            // Update book status via API (cross-module update)
-            $updateResponse = Http::put("{$apiUrl}/api/books/{$bookId}", [
-                'status' => 'Borrowed'
-            ]);
-            
-            if (!$updateResponse->successful()) {
-                throw new Exception("Failed to update book status");
-            }
+            // Update book status directly (same application - direct access OK)
+            $book->status = 'Borrowed';
+            $book->save();
 
             // Fulfill reservation if exists
             $reservationService = app(ReservationService::class);
             $reservationService->fulfillReservation($userId, $bookId);
 
-            Log::info('State Pattern [BORROW]: State transition completed via API', [
+            Log::info('State Pattern [BORROW]: State transition completed', [
                 'borrowing_id' => $borrowing->id,
                 'user_id' => $userId,
                 'book_id' => $bookId,

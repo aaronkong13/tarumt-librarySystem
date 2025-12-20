@@ -55,29 +55,36 @@ Route::prefix('fines')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/{id}/waive', [BorrowingApiController::class, 'waiveFine'])->name('api.fines.waive')->middleware('check.staff');
 });
 
+// =====================================================================
+// CROSS-MODULE API ENDPOINTS (No Authentication Required)
+// These endpoints are for internal cross-module communication
+// Safe because they're read-only and only accessible from server-side
+// =====================================================================
+
+// BORROWING STATS API (for Book Management module)
+Route::get('/borrowings/books/{bookId}/stats', [BorrowingApiController::class, 'bookStats'])
+    ->name('api.borrowings.book-stats');
+
+// BOOK API ENDPOINTS (for Borrowing module)
+Route::prefix('books')->group(function () {
+    // Get available books
+    Route::get('/available', [BookApiController::class, 'getAvailableBooks'])
+        ->name('api.books.available');
+    
+    // Get single book by ID
+    Route::get('/{id}', [BookApiController::class, 'show'])
+        ->name('api.books.show-internal');
+    
+    // Update book (for status changes from borrowing module)
+    Route::put('/{id}', [BookApiController::class, 'update'])
+        ->name('api.books.update-internal');
+});
+
+// USER API ENDPOINTS (for Borrowing module)
+Route::get('/users/{id}', [UserApiController::class, 'show'])
+    ->name('api.users.show-internal');
+
 Route::middleware(['web'])->group(function () {
-
-    // =====================================================================
-    // BORROWING API ENDPOINTS (for cross-module access)
-    // Note: Using 'web' middleware only for session-based cross-origin requests
-    // =====================================================================
-    Route::prefix('borrowings')->group(function () {
-        // Get borrowing statistics for a specific book
-        // No auth required since it's read-only stats and called from authenticated frontend
-        Route::get('/books/{bookId}/stats', [BorrowingApiController::class, 'bookStats'])
-            ->name('api.borrowings.book-stats');
-    });
-
-    // =====================================================================
-    // BOOK API ENDPOINTS (for cross-module access)
-    // Note: Using 'web' middleware only for session-based cross-origin requests
-    // =====================================================================
-    Route::prefix('books')->group(function () {
-        // Get available books (for borrowing module)
-        // No auth required since it's read-only data and called from authenticated frontend
-        Route::get('/available', [BookApiController::class, 'getAvailableBooks'])
-            ->name('api.books.available');
-    });
 
     // =====================================================================
     // BOOK API ENDPOINTS (REST)

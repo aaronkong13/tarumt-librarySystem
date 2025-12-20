@@ -68,6 +68,12 @@ class UserApiController extends Controller
                 ], 404);
             }
 
+            // Clear ALL output buffers to remove any BOM or whitespace
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            ob_start();
+
             return response()->json([
                 'success' => true,
                 'message' => 'User retrieved successfully',
