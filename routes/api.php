@@ -42,9 +42,16 @@ Route::middleware(['web'])->group(function () {
     // =====================================================================
     // BOOK API ENDPOINTS (REST)
     // =====================================================================
-
-    Route::prefix('books')->group(function () {
-
+    // ALL endpoints require authentication (login or API token)
+    // Only authenticated users (Student/Staff/Admin) can access books
+    // =====================================================================
+    
+    Route::prefix('books')->middleware(['api_token_auth'])->group(function () {
+        
+        // ═════════════════════════════════════════════════════════════════
+        // READ ENDPOINTS (All authenticated users can read)
+        // ═════════════════════════════════════════════════════════════════
+        
         // List all books with filtering
         Route::get('/', [BookApiController::class, 'index'])
             ->name('api.books.index');
@@ -69,17 +76,23 @@ Route::middleware(['web'])->group(function () {
         Route::get('/{id}', [BookApiController::class, 'show'])
             ->name('api.books.show');
 
-        // Create a new book
-        Route::post('/', [BookApiController::class, 'store'])
-            ->name('api.books.store');
-
-        // Update a book
-        Route::put('/{id}', [BookApiController::class, 'update'])
-            ->name('api.books.update');
-
-        // Delete a book
-        Route::delete('/{id}', [BookApiController::class, 'destroy'])
-            ->name('api.books.destroy');
+        // ═════════════════════════════════════════════════════════════════
+        // WRITE ENDPOINTS (Staff/Admin only)
+        // ═════════════════════════════════════════════════════════════════
+        Route::middleware(['check_book_permission'])->group(function () {
+            
+            // Create new book (Staff/Admin only)
+            Route::post('/', [BookApiController::class, 'store'])
+                ->name('api.books.store');
+            
+            // Update book (Staff/Admin only)
+            Route::put('/{id}', [BookApiController::class, 'update'])
+                ->name('api.books.update');
+            
+            // Delete book (Staff/Admin only)
+            Route::delete('/{id}', [BookApiController::class, 'destroy'])
+                ->name('api.books.destroy');
+        });
     });
 
     // =====================================================================

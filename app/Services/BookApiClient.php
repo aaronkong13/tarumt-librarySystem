@@ -10,6 +10,8 @@ use Exception;
  * 
  * This enforces module boundaries: other modules should not directly
  * access BookService or Book model, but instead use this API client.
+ * 
+ * Uses API_URL config to allow separate frontend/backend on different ports.
  */
 class BookApiClient
 {
@@ -17,7 +19,9 @@ class BookApiClient
 
     public function __construct()
     {
-        $this->baseUrl = config('app.url') . '/api/books';
+        // Use API_URL config (allows frontend/backend separation on different ports)
+        $apiUrl = config('app.api_url') ?? config('app.url');
+        $this->baseUrl = $apiUrl . '/api/books';
     }
 
     /**
