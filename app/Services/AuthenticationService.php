@@ -19,29 +19,33 @@ class AuthenticationService
      * Authenticate user with credentials
      * 
      * @param array $credentials
+     * @param bool $remember
      * @return bool
      */
-    public static function authenticate(array $credentials): bool
+    public static function authenticate(array $credentials, bool $remember = false): bool
     {
-        // Check if user exists and is active
-        $user = User::where('email', $credentials['email'])->first();
+        // Check if user exists (including soft deleted users)
+        $user = User::withTrashed()->where('email', $credentials['email'])->first();
         
         if (!$user) {
             return false;
         }
 
-        // Check if user is active
+        // Verify password directly from database
+        if (!Hash::check($credentials['password'], $user->password)) {
+            return false;
+        }
+
+        // Check if user is active (after password verification)
         if ($user->status !== 'Active') {
-            throw new \Exception('Your account has been deactivated. Please contact administrator.');
+            throw new \Exception('You have been banned. Please contact administrator.');
         }
 
-        // Attempt authentication
-        if (Auth::attempt($credentials)) {
-            session()->regenerate();
-            return true;
-        }
-
-        return false;
+        // Manually login the user with remember option
+        Auth::login($user, $remember);
+        session()->regenerate();
+        
+        return true;
     }
 
     /**

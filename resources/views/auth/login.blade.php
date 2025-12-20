@@ -36,6 +36,19 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div class="rounded-md bg-red-50 p-4 border-l-4 border-red-400">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fa-solid fa-circle-xmark text-red-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-800">{{ session('error') }}</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             @if(session('success'))
                 <div class="rounded-md bg-green-50 p-4 border-l-4 border-green-400">
                     <div class="flex">
@@ -90,6 +103,7 @@
                             <input type="checkbox" 
                                    id="remember" 
                                    name="remember"
+                                   {{ old('remember') ? 'checked' : '' }}
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <label for="remember" class="ml-2 block text-sm text-gray-900">Remember me</label>
                         </div>

@@ -35,8 +35,11 @@ class AuthController extends Controller
                 'password' => 'required',
             ]);
 
-            // Authentication Service: Authenticate user
-            if (AuthenticationService::authenticate($credentials)) {
+            // Get remember me value (defaults to false if not checked)
+            $remember = $request->boolean('remember');
+
+            // Authentication Service: Authenticate user with remember option
+            if (AuthenticationService::authenticate($credentials, $remember)) {
                 $request->session()->regenerate();
                 
                 return redirect()->intended('/dashboard')
@@ -45,10 +48,10 @@ class AuthController extends Controller
 
             return back()->withErrors([
                 'email' => 'The provided credentials do not match our records.',
-            ])->withInput($request->only('email'));
+            ])->withInput($request->only('email', 'remember'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage())
-                ->withInput($request->only('email'));
+                ->withInput($request->only('email', 'remember'));
         }
     }
 

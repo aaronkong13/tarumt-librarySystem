@@ -122,6 +122,7 @@
                 </div>
             </div>
 
+            @if(Auth::user()->role !== 'Staff')
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="p-5">
                     <div class="flex items-center">
@@ -139,6 +140,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="p-5">
@@ -150,7 +152,13 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Active</dt>
                                 <dd class="text-lg font-bold text-gray-900">
-                                    {{ App\Models\User::where('status', 'Active')->count() }}
+                                    @if(Auth::user()->role === 'Admin')
+                                        {{ App\Models\User::where('status', 'Active')->where('role', '!=', 'Admin')->count() }}
+                                    @elseif(Auth::user()->role === 'Staff')
+                                        {{ App\Models\User::where('status', 'Active')->whereNotIn('role', ['Admin', 'Staff'])->count() }}
+                                    @else
+                                        {{ App\Models\User::where('status', 'Active')->count() }}
+                                    @endif
                                 </dd>
                             </dl>
                         </div>
@@ -327,13 +335,13 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                 @if(app(\App\Services\AccessControlService::class)->canViewUser($user))
                                     <a href="{{ route('users.show', $user->id) }}" class="text-blue-600 hover:text-blue-900" title="View">
-                                        <i class="fa-solid fa-eye"></i>
+                                        <i class="fa-solid fa-eye text-lg"></i>
                                     </a>
                                 @endif
 
                                 @if(app(\App\Services\AccessControlService::class)->canEditUser($user))
                                     <a href="{{ route('users.edit', $user->id) }}" class="text-yellow-600 hover:text-yellow-900" title="Edit">
-                                        <i class="fa-solid fa-pen-to-square"></i>
+                                        <i class="fa-solid fa-pen-to-square text-lg"></i>
                                     </a>
                                 @endif
 
@@ -343,14 +351,14 @@
                                                 data-user-id="{{ $user->id }}" 
                                                 data-action="deactivate"
                                                 title="Deactivate">
-                                            <i class="fa-solid fa-ban"></i>
+                                            <i class="fa-solid fa-ban text-lg"></i>
                                         </button>
                                     @else
                                         <button class="toggle-status-btn text-green-600 hover:text-green-900" 
                                                 data-user-id="{{ $user->id }}" 
                                                 data-action="activate"
                                                 title="Activate">
-                                            <i class="fa-solid fa-check-circle"></i>
+                                            <i class="fa-solid fa-check-circle text-lg"></i>
                                         </button>
                                     @endif
                                 @endif
@@ -507,6 +515,9 @@
                 updateUserTable(data);
                 updatePagination(data);
                 
+                // Scroll to top of the page
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
             } catch (error) {
                 console.error('Error fetching users:', error);
                 showToast('Failed to load users. Please try again.', 'error');
@@ -610,14 +621,14 @@
             // View button (assuming all users can view)
             if (user.can_view) {
                 buttons += `<a href="/users/${user.id}" class="text-blue-600 hover:text-blue-900" title="View">
-                    <i class="fa-solid fa-eye"></i>
+                    <i class="fa-solid fa-eye text-lg"></i>
                 </a>`;
             }
             
             // Edit button
             if (user.can_edit) {
                 buttons += `<a href="/users/${user.id}/edit" class="text-yellow-600 hover:text-yellow-900" title="Edit">
-                    <i class="fa-solid fa-pen-to-square"></i>
+                    <i class="fa-solid fa-pen-to-square text-lg"></i>
                 </a>`;
             }
             
@@ -628,14 +639,14 @@
                         data-user-id="${user.id}" 
                         data-action="deactivate"
                         title="Deactivate">
-                        <i class="fa-solid fa-ban"></i>
+                        <i class="fa-solid fa-ban text-lg"></i>
                     </button>`;
                 } else {
                     buttons += `<button class="toggle-status-btn text-green-600 hover:text-green-900" 
                         data-user-id="${user.id}" 
                         data-action="activate"
                         title="Activate">
-                        <i class="fa-solid fa-check-circle"></i>
+                        <i class="fa-solid fa-check-circle text-lg"></i>
                     </button>`;
                 }
             }
