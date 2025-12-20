@@ -58,8 +58,31 @@
                 @php
                     $allBorrowings = App\Models\Borrowing::where('status', 'borrowed')->with(['book', 'user'])->orderBy('due_date')->get();
                     $overdueCount = $allBorrowings->filter(fn($b) => $b->due_date->isPast())->count();
-                    $availableBooks = App\Models\Book::where('status', 'Available')->whereDoesntHave('borrowings', fn($q) => $q->where('status', 'borrowed'))->get();
-                    $activeReservations = App\Models\Reservation::where('status', 'active')->count();
+
+                    // Get ready for pickup via API query (same logic as API endpoint)
+                    $reservedAvailableBooks = App\Models\Reservation::whereIn('status', ['waiting', 'notified', 'active'])
+                        ->with(['book', 'user'])
+                        ->whereHas('book', function($q) {
+                            $q->whereIn('status', ['Available', 'Reserved'])
+                              ->whereDoesntHave('borrowings', fn($bq) => $bq->where('status', 'borrowed'));
+                        })
+                        ->orderBy('book_id')
+                        ->orderBy('queue_position')
+                        ->get()
+                        ->groupBy('book_id')
+                        ->map(fn($group) => $group->first())
+                        ->values();
+
+                    // Get book IDs that have reservations ready for pickup
+                    $reservedBookIds = $reservedAvailableBooks->pluck('book_id')->toArray();
+
+                    // Available books WITHOUT any active reservations
+                    $availableBooks = App\Models\Book::where('status', 'Available')
+                        ->whereDoesntHave('borrowings', fn($q) => $q->where('status', 'borrowed'))
+                        ->whereNotIn('bookId', $reservedBookIds)
+                        ->get();
+
+                    $activeReservations = App\Models\Reservation::whereIn('status', ['waiting', 'notified', 'active'])->count();
                 @endphp
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -188,7 +211,7 @@
                     </div>
                 </div>
 
-                <!-- Available Books -->
+                <!-- Available Books (Not Reserved) -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 mb-8">
                     <div class="px-6 py-4 border-b border-gray-100">
                         <h3 class="text-lg font-semibold text-gray-900">
@@ -237,67 +260,55 @@
                     </div>
                 </div>
 
-                <!-- Books Available for Reservation -->
-                @php
-                    $borrowedBooks = App\Models\Book::whereHas('borrowings', fn($q) => $q->where('status', 'borrowed'))
-                        ->with(['borrowings' => fn($q) => $q->where('status', 'borrowed')->with('user'), 'reservations' => fn($q) => $q->where('status', 'active')->with('user')])
-                        ->get();
-                @endphp
-
-                @if($borrowedBooks->isNotEmpty())
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+                <!-- Reserved Books Ready for Pickup (Book Available + Notified Reservation) -->
+                @if($reservedAvailableBooks->isNotEmpty())
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 mb-8">
                     <div class="px-6 py-4 border-b border-gray-100">
                         <h3 class="text-lg font-semibold text-gray-900">
-                            <i class="fa-solid fa-bookmark text-amber-600 mr-2"></i>
-                            Books Available for Reservation
+                            <i class="fa-solid fa-bell text-green-600 mr-2"></i>
+                            Reserved Books - Ready for Pickup
                         </h3>
+                        <p class="text-sm text-gray-500">These books are available and waiting for the reserved user to pick up</p>
                     </div>
                     <div class="p-6">
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            @foreach($borrowedBooks as $book)
-                                @php
-                                    $activeBorrowing = $book->borrowings->first();
-                                    $activeReservation = $book->reservations->first();
-                                @endphp
-                                <div class="border border-amber-200 bg-amber-50 rounded-xl p-4">
+                            @foreach($reservedAvailableBooks as $reservation)
+                                <div class="border-2 border-green-300 bg-green-50 rounded-xl p-4">
                                     <div class="flex items-start gap-3 mb-3">
-                                        @if($book->cover_image)
-                                            <img src="data:image/jpeg;base64,{{ base64_encode($book->cover_image) }}"
-                                                 class="w-16 h-20 object-cover rounded-lg opacity-70">
+                                        @if($reservation->book->cover_image)
+                                            <img src="data:image/jpeg;base64,{{ base64_encode($reservation->book->cover_image) }}"
+                                                 class="w-16 h-20 object-cover rounded-lg">
                                         @else
-                                            <div class="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center opacity-70">
+                                            <div class="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
                                                 <i class="fa-solid fa-book text-gray-400 text-xl"></i>
                                             </div>
                                         @endif
                                         <div class="flex-1 min-w-0">
-                                            <h4 class="font-semibold text-gray-900 text-sm truncate">{{ $book->title }}</h4>
-                                            <p class="text-xs text-gray-500 truncate">{{ $book->author }}</p>
-                                            <p class="text-xs text-amber-600 mt-1">
-                                                <i class="fa-solid fa-clock mr-1"></i>
-                                                Due: {{ $activeBorrowing->due_date->format('M d') }}
+                                            <h4 class="font-semibold text-gray-900 text-sm truncate">{{ $reservation->book->title }}</h4>
+                                            <p class="text-xs text-gray-500 truncate">{{ $reservation->book->author }}</p>
+                                            <p class="text-xs text-green-600 mt-1 font-medium">
+                                                <i class="fa-solid fa-check-circle mr-1"></i> Available Now
                                             </p>
                                         </div>
                                     </div>
-                                    @if($activeReservation)
-                                        <div class="bg-gray-100 rounded-lg px-3 py-2 text-center">
-                                            <span class="text-sm text-gray-600">Reserved by</span>
-                                            <p class="font-semibold text-gray-900">#{{ $activeReservation->user->id }} - {{ $activeReservation->user->name }}</p>
-                                        </div>
-                                    @else
-                                        <form action="{{ route('borrowings.reserve') }}" method="POST">
-                                            @csrf
-                                            <input type="hidden" name="book_id" value="{{ $book->bookId }}">
-                                            @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
-                                                <div class="mb-2">
-                                                    <input type="number" name="user_id" placeholder="User ID" required
-                                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                                                </div>
-                                            @endif
-                                            <button type="submit" class="w-full px-3 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
-                                                <i class="fa-solid fa-bookmark mr-1"></i> Reserve
-                                            </button>
-                                        </form>
-                                    @endif
+                                    <div class="bg-white rounded-lg px-3 py-2 mb-3 border border-green-200">
+                                        <span class="text-xs text-gray-500">Reserved by</span>
+                                        <p class="font-semibold text-gray-900 text-sm">#{{ $reservation->user->id }} - {{ $reservation->user->name }}</p>
+                                        @if($reservation->expiry_date)
+                                            <p class="text-xs text-amber-600 mt-1">
+                                                <i class="fa-solid fa-clock mr-1"></i>
+                                                Expires: {{ $reservation->expiry_date->format('M d, Y') }}
+                                            </p>
+                                        @endif
+                                    </div>
+                                    <form action="{{ route('borrowings.borrow') }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="book_id" value="{{ $reservation->book->bookId }}">
+                                        <input type="hidden" name="user_id" value="{{ $reservation->user->id }}">
+                                        <button type="submit" class="w-full px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors" onclick="return confirm('Issue this book to {{ $reservation->user->name }}?')">
+                                            <i class="fa-solid fa-book-open mr-1"></i> Borrow for #{{ $reservation->user->id }}
+                                        </button>
+                                    </form>
                                 </div>
                             @endforeach
                         </div>

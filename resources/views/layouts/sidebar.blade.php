@@ -93,8 +93,8 @@
         @endif
 
         {{-- Fines --}}
-        @if(Route::has('borrowings.fines'))
-        <a href="{{ route('borrowings.fines') }}" 
+        @if(Route::has('fines.index'))
+        <a href="{{ route('fines.index') }}" 
            class="flex items-center px-4 py-3 rounded-xl transition-colors {{ $active === 'fines' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-gray-400 hover:text-white hover:bg-gray-800' }}">
             <i class="fa-solid fa-money-bill w-6"></i>
             <span class="font-medium text-sm">Fines</span>

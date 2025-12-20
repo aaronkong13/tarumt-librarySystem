@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\BookApiController;
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\ReservationApiController;
+use App\Http\Controllers\Api\BorrowingApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,12 +30,29 @@ Route::prefix('borrowings')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/{borrowing}/return', [\App\Http\Controllers\BorrowingController::class, 'return']);
     Route::post('/{borrowing}/renew', [\App\Http\Controllers\BorrowingController::class, 'renew']);
     Route::get('/history', [\App\Http\Controllers\BorrowingController::class, 'myHistory']);
-    Route::get('/fines', [\App\Http\Controllers\BorrowingController::class, 'myFines']);
-    Route::post('/fines/{fine}/pay', [\App\Http\Controllers\BorrowingController::class, 'payFine']);
     Route::post('/reserve', [\App\Http\Controllers\BorrowingController::class, 'reserve']);
     Route::delete('/reservations/{reservation}', [\App\Http\Controllers\BorrowingController::class, 'cancelReservation']);
     Route::get('/books/{book}/availability', [\App\Http\Controllers\BorrowingController::class, 'checkAvailability']);
     Route::get('/overdue', [\App\Http\Controllers\BorrowingController::class, 'overdueList'])->middleware('check.staff');
+});
+
+// =====================================================================
+// FINE API ENDPOINTS (REST)
+// =====================================================================
+Route::prefix('fines')->middleware(['auth:sanctum'])->group(function () {
+    // List fines
+    Route::get('/', [BorrowingApiController::class, 'fines'])->name('api.fines.index');
+    Route::get('/check-unpaid', [BorrowingApiController::class, 'checkUnpaidFines'])->name('api.fines.check-unpaid');
+    Route::get('/statistics', [BorrowingApiController::class, 'fineStatistics'])->name('api.fines.statistics')->middleware('check.staff');
+    Route::get('/report', [BorrowingApiController::class, 'fineReport'])->name('api.fines.report')->middleware('check.staff');
+    Route::get('/user/{userId?}/summary', [BorrowingApiController::class, 'userFineSummary'])->name('api.fines.user-summary');
+    Route::get('/{id}', [BorrowingApiController::class, 'showFine'])->name('api.fines.show');
+
+    // Actions
+    Route::post('/pay-all', [BorrowingApiController::class, 'payAllFines'])->name('api.fines.pay-all');
+    Route::post('/process-overdue', [BorrowingApiController::class, 'processOverdueFines'])->name('api.fines.process-overdue')->middleware('check.staff');
+    Route::post('/{id}/pay', [BorrowingApiController::class, 'payFine'])->name('api.fines.pay');
+    Route::post('/{id}/waive', [BorrowingApiController::class, 'waiveFine'])->name('api.fines.waive')->middleware('check.staff');
 });
 
 Route::middleware(['web'])->group(function () {
@@ -45,13 +63,13 @@ Route::middleware(['web'])->group(function () {
     // ALL endpoints require authentication (login or API token)
     // Only authenticated users (Student/Staff/Admin) can access books
     // =====================================================================
-    
+
     Route::prefix('books')->middleware(['api_token_auth'])->group(function () {
-        
+
         // ═════════════════════════════════════════════════════════════════
         // READ ENDPOINTS (All authenticated users can read)
         // ═════════════════════════════════════════════════════════════════
-        
+
         // List all books with filtering
         Route::get('/', [BookApiController::class, 'index'])
             ->name('api.books.index');
@@ -80,15 +98,15 @@ Route::middleware(['web'])->group(function () {
         // WRITE ENDPOINTS (Staff/Admin only)
         // ═════════════════════════════════════════════════════════════════
         Route::middleware(['check_book_permission'])->group(function () {
-            
+
             // Create new book (Staff/Admin only)
             Route::post('/', [BookApiController::class, 'store'])
                 ->name('api.books.store');
-            
+
             // Update book (Staff/Admin only)
             Route::put('/{id}', [BookApiController::class, 'update'])
                 ->name('api.books.update');
-            
+
             // Delete book (Staff/Admin only)
             Route::delete('/{id}', [BookApiController::class, 'destroy'])
                 ->name('api.books.destroy');
@@ -178,6 +196,11 @@ Route::middleware(['web'])->group(function () {
         // Get reservation statistics
         Route::get('/stats/overview', [ReservationApiController::class, 'stats'])
             ->name('api.reservations.stats')
+            ->middleware('auth');
+
+        // Get reservations ready for pickup (Staff only)
+        Route::get('/ready-for-pickup', [ReservationApiController::class, 'readyForPickup'])
+            ->name('api.reservations.ready-for-pickup')
             ->middleware('auth');
     });
 

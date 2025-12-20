@@ -43,4 +43,43 @@ class AvailableState implements BorrowingStateInterface
     {
         return 'available';
     }
+
+    // =====================================================================
+    // FINE METHODS (Not applicable for Borrowing states)
+    // =====================================================================
+
+    public function pay($context): void
+    {
+        throw new Exception('Pay operation not applicable for Borrowing states.');
+    }
+
+    public function waive($context): void
+    {
+        throw new Exception('Waive operation not applicable for Borrowing states.');
+    }
+
+    public function updateAmount($context, float $amount): void
+    {
+        throw new Exception('Update amount operation not applicable for Borrowing states.');
+    }
+
+    public function canPay(): bool
+    {
+        return false;
+    }
+
+    public function canWaive(): bool
+    {
+        return false;
+    }
+
+    public function canUpdateAmount(): bool
+    {
+        return false;
+    }
+
+    public function getStateDescription(): string
+    {
+        return 'Book is available for borrowing.';
+    }
 }

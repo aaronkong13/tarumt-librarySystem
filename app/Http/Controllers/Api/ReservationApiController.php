@@ -13,7 +13,7 @@ use Exception;
 
 /**
  * ReservationApiController - REST API for Reservation Module
- * 
+ *
  * Architecture matches BookApiController and BorrowingApiController:
  * - Uses dependency injection for ReservationService
  * - Provides JSON endpoints for reservation operations
@@ -33,7 +33,7 @@ class ReservationApiController extends Controller
     /**
      * POST /api/reservations
      * Create a new reservation (Student only)
-     * 
+     *
      * Business Rules:
      * - Book must be borrowed (not available)
      * - No duplicate reservations
@@ -75,7 +75,7 @@ class ReservationApiController extends Controller
     /**
      * DELETE /api/reservations/{id}
      * Cancel a reservation (Student only - own reservations)
-     * 
+     *
      * Authorization: Only reservation owner can cancel
      */
     public function destroy($id): JsonResponse
@@ -101,7 +101,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/my-reservations
      * Get current user's active reservations
-     * 
+     *
      * Returns:
      * - Book details
      * - Queue position
@@ -131,7 +131,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/my-notifications
      * Get current user's notifications
-     * 
+     *
      * Returns books that are now available (notified status)
      */
     public function myNotifications(): JsonResponse
@@ -157,7 +157,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/queue/{bookId}
      * View reservation queue for a specific book
-     * 
+     *
      * Students: Can see own position
      * Staff: Can see full queue
      */
@@ -195,7 +195,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/queues/all
      * View all reservation queues (Staff only)
-     * 
+     *
      * Returns all books with active reservations
      */
     public function allQueues(): JsonResponse
@@ -235,7 +235,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/check/{bookId}
      * Check if user can reserve a book
-     * 
+     *
      * Returns reservation eligibility and queue status
      */
     public function checkStatus($bookId): JsonResponse
@@ -276,7 +276,7 @@ class ReservationApiController extends Controller
     /**
      * GET /api/reservations/stats/overview
      * Get reservation statistics
-     * 
+     *
      * Returns overview statistics for all reservations
      */
     public function stats(): JsonResponse
@@ -287,7 +287,7 @@ class ReservationApiController extends Controller
             $fulfilledReservations = Reservation::where('status', 'fulfilled')->count();
             $expiredReservations = Reservation::where('status', 'expired')->count();
             $cancelledReservations = Reservation::where('status', 'cancelled')->count();
-            
+
             // Average wait time (days between reservation_date and notified_at)
             $avgWaitTime = Reservation::whereNotNull('notified_at')
                 ->whereNotNull('reservation_date')
@@ -310,6 +310,74 @@ class ReservationApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/reservations/ready-for-pickup
+     * Get reservations that are ready for pickup (Staff only)
+     *
+     * Returns reservations where book is available/reserved and not currently borrowed
+     * Groups by book to avoid duplicates - only shows first in queue per book
+     */
+    public function readyForPickup(): JsonResponse
+    {
+        try {
+            // Check staff permission
+            if (!Auth::user()->isStaff() && !Auth::user()->isAdmin()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access.',
+                ], 403);
+            }
+
+            // Get reservations where book is ready for pickup
+            // Only get first in queue per book (queue_position = 1 or lowest)
+            $reservations = Reservation::whereIn('status', ['waiting', 'notified', 'active'])
+                ->with(['book', 'user'])
+                ->whereHas('book', function($q) {
+                    $q->whereIn('status', ['Available', 'Reserved'])
+                      ->whereDoesntHave('borrowings', fn($bq) => $bq->where('status', 'borrowed'));
+                })
+                ->orderBy('book_id')
+                ->orderBy('queue_position')
+                ->get()
+                ->groupBy('book_id')
+                ->map(function($group) {
+                    // Return only the first reservation per book (first in queue)
+                    return $group->first();
+                })
+                ->values();
+
+            $data = $reservations->map(function($reservation) {
+                return [
+                    'reservation_id' => $reservation->id,
+                    'book_id' => $reservation->book_id,
+                    'book_title' => $reservation->book->title,
+                    'book_author' => $reservation->book->author,
+                    'book_cover' => $reservation->book->cover_image ? base64_encode($reservation->book->cover_image) : null,
+                    'book_status' => $reservation->book->status,
+                    'user_id' => $reservation->user_id,
+                    'user_name' => $reservation->user->name,
+                    'user_email' => $reservation->user->email,
+                    'reservation_status' => $reservation->status,
+                    'queue_position' => $reservation->queue_position,
+                    'expiry_date' => $reservation->expiry_date?->format('M d, Y'),
+                    'notified_at' => $reservation->notified_at?->format('M d, Y H:i'),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ready for pickup reservations retrieved successfully',
+                'data' => $data,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving ready for pickup reservations',
                 'error' => $e->getMessage(),
             ], 500);
         }

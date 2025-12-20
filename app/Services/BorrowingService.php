@@ -27,7 +27,7 @@ use Exception;
 class BorrowingService
 {
     protected $fineRatePerDay = 0.50;
-    protected $defaultBorrowDays = 14;
+    protected $defaultBorrowDays = -2;
     protected $reservationExpiryDays = 3;
     protected BookApiClient $bookApiClient;
 

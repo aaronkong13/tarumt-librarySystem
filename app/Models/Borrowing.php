@@ -18,7 +18,6 @@ class Borrowing extends Model
         'return_date',
         'status',
         'fine_amount',
-        'fine_paid',
         'notes',
     ];
 
@@ -27,7 +26,6 @@ class Borrowing extends Model
         'due_date' => 'date',
         'return_date' => 'date',
         'fine_amount' => 'decimal:2',
-        'fine_paid' => 'boolean',
     ];
 
     // Relationships
@@ -76,7 +74,7 @@ class Borrowing extends Model
     public function getDaysOverdue()
     {
         if (!$this->isOverdue()) return 0;
-        return now()->diffInDays($this->due_date);
+        return $this->due_date->diffInDays(now());
     }
 
     public function calculateFine($ratePerDay = 0.50)

@@ -7,6 +7,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BookStateController;
 use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\FineController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,8 +81,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/{borrowing}/return', [BorrowingController::class, 'return'])->name('borrowings.return');
         Route::post('/{borrowing}/renew', [BorrowingController::class, 'renew'])->name('borrowings.renew');
         Route::get('/history', [BorrowingController::class, 'myHistory'])->name('borrowings.history');
-        Route::get('/fines', [BorrowingController::class, 'myFines'])->name('borrowings.fines');
-        Route::post('/fines/{fine}/pay', [BorrowingController::class, 'payFine'])->name('fines.pay');
 
         // Reservations (Legacy - keep for backward compatibility)
         Route::post('/reserve', [BorrowingController::class, 'reserve'])->name('borrowings.reserve');
@@ -93,6 +92,27 @@ Route::middleware('auth')->group(function () {
         // Staff only
         Route::middleware('check.staff')->group(function () {
             Route::get('/overdue', [BorrowingController::class, 'overdueList'])->name('borrowings.overdue');
+        });
+    });
+
+    // --- Fine Management Routes ---
+    Route::prefix('fines')->group(function () {
+        // Student & Staff routes
+        Route::get('/', [FineController::class, 'index'])->name('fines.index');
+        Route::get('/my-fines', [FineController::class, 'myFines'])->name('fines.my');
+        Route::post('/{fine}/pay', [FineController::class, 'pay'])->name('fines.pay');
+        Route::post('/pay-all', [FineController::class, 'payAll'])->name('fines.pay-all');
+        Route::get('/check-unpaid', [FineController::class, 'checkUnpaid'])->name('fines.check-unpaid');
+        Route::get('/{fine}', [FineController::class, 'show'])->name('fines.show');
+
+        // Staff only routes
+        Route::middleware('check.staff')->group(function () {
+            Route::post('/{fine}/waive', [FineController::class, 'waive'])->name('fines.waive');
+            Route::post('/process-overdue', [FineController::class, 'processOverdue'])->name('fines.process-overdue');
+            Route::get('/statistics/overview', [FineController::class, 'statistics'])->name('fines.statistics');
+            Route::get('/report/generate', [FineController::class, 'report'])->name('fines.report');
+            Route::get('/user/{user}/summary', [FineController::class, 'userSummary'])->name('fines.user-summary');
+            Route::post('/user/{user}/pay-all', [FineController::class, 'payAll'])->name('fines.user-pay-all');
         });
     });
 
