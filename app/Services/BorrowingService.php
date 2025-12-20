@@ -7,8 +7,8 @@ use App\Models\Borrowing;
 use App\Models\Reservation;
 use App\Models\Fine;
 use App\Models\User;
-use App\Services\BookApiClient;
 use App\Services\ReservationService;
+use Illuminate\Support\Facades\Http;
 use App\States\Borrowing\BorrowingContext;
 use App\Observers\Reservation\ReservationSubject;
 use App\Observers\Reservation\EmailNotificationObserver;
@@ -23,17 +23,21 @@ use Exception;
  *
  * Uses State Pattern and Observer Pattern for borrowing workflow.
  * All business logic is here - controllers just handle HTTP concerns.
+ * 
+ * MODULE SEPARATION:
+ * - Borrowing Module (this) ≠ Book Module
+ * - Uses HTTP calls to Book API endpoints (localhost:8001/api/books)
+ * - No BookApiClient needed - direct HTTP calls to ApiControllers
  */
 class BorrowingService
 {
     protected $fineRatePerDay = 0.50;
     protected $defaultBorrowDays = -2;
     protected $reservationExpiryDays = 3;
-    protected BookApiClient $bookApiClient;
 
     public function __construct()
     {
-        $this->bookApiClient = new BookApiClient();
+        // No dependencies needed - uses direct HTTP calls to API endpoints
     }
 
     /**
@@ -44,13 +48,35 @@ class BorrowingService
         $durationDays = $durationDays ?? $this->defaultBorrowDays;
 
         return DB::transaction(function () use ($userId, $bookId, $durationDays) {
-            $book = Book::findOrFail($bookId);
-            $user = User::findOrFail($userId);
+            // Get book and user data from API (cross-module) - Call BookApiController & UserApiController
+            $apiUrl = config('app.api_url', config('app.url'));
+            
+            $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
+            if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
+                throw new Exception("Book not found or unavailable");
+            }
+            $bookData = $bookResponse->json()['data'];
+            
+            $userResponse = Http::get("{$apiUrl}/api/users/{$userId}");
+            if (!$userResponse->successful() || !$userResponse->json()['success']) {
+                throw new Exception("User not found");
+            }
+            $userData = $userResponse->json()['data'];
+            
+            // Reconstruct Book model from API data (for State Pattern)
+            $book = new Book((array)$bookData);
+            $book->exists = true; // Mark as existing record
+            $book->bookId = $bookData['bookId'];
+            
+            // Reconstruct User model from API data
+            $user = new User((array)$userData);
+            $user->exists = true;
+            $user->id = $userData['id'];
 
             // === STATE PATTERN: Create context and check state ===
             $context = new BorrowingContext($book);
 
-            Log::info('State Pattern [BORROW]: Checking book state', [
+            Log::info('State Pattern [BORROW]: Checking book state via API data', [
                 'book_id' => $book->bookId,
                 'current_state' => $context->getStateName(),
                 'can_borrow' => $context->canBorrow()
@@ -67,26 +93,32 @@ class BorrowingService
             // === STATE PATTERN: Perform state transition ===
             $context->borrow();
 
-            // Create borrowing record
+            // Create borrowing record (Borrowing module - direct access OK)
             $borrowing = Borrowing::create([
                 'user_id' => $userId,
-                'book_id' => $book->bookId,
+                'book_id' => $bookId,
                 'borrow_date' => now(),
                 'due_date' => now()->addDays($durationDays),
                 'status' => 'borrowed',
             ]);
 
-            // Update book status
-            $book->update(['status' => 'Borrowed']);
+            // Update book status via API (cross-module update)
+            $updateResponse = Http::put("{$apiUrl}/api/books/{$bookId}", [
+                'status' => 'Borrowed'
+            ]);
+            
+            if (!$updateResponse->successful()) {
+                throw new Exception("Failed to update book status");
+            }
 
             // Fulfill reservation if exists
             $reservationService = app(ReservationService::class);
-            $reservationService->fulfillReservation($userId, $book->bookId);
+            $reservationService->fulfillReservation($userId, $bookId);
 
-            Log::info('State Pattern [BORROW]: State transition completed', [
+            Log::info('State Pattern [BORROW]: State transition completed via API', [
                 'borrowing_id' => $borrowing->id,
                 'user_id' => $userId,
-                'book_id' => $book->bookId,
+                'book_id' => $bookId,
                 'new_state' => $context->getStateName()
             ]);
 
@@ -193,6 +225,20 @@ class BorrowingService
         $expiryDays = $expiryDays ?? $this->reservationExpiryDays;
 
         return DB::transaction(function () use ($userId, $bookId, $expiryDays) {
+            // Validate via API calls (cross-module) - Call BookApiController & UserApiController
+            $apiUrl = config('app.api_url', config('app.url'));
+            
+            $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
+            if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
+                throw new Exception("Book not found");
+            }
+            
+            $userResponse = Http::get("{$apiUrl}/api/users/{$userId}");
+            if (!$userResponse->successful() || !$userResponse->json()['success']) {
+                throw new Exception("User not found");
+            }
+            
+            // Get models for transaction
             $book = Book::findOrFail($bookId);
             $user = User::findOrFail($userId);
 
@@ -369,37 +415,61 @@ class BorrowingService
      */
     public function getBorrowingHistoryWithStates($userId = null, $isStaff = false)
     {
-        $query = Borrowing::with(['book', 'user', 'fines']);
+        // Fetch borrowings with user and fines (same module, direct access OK)
+        $query = Borrowing::with(['user', 'fines']);
 
         if (!$isStaff && $userId) {
             $query->where('user_id', $userId);
         }
 
-        return $query->orderBy('borrow_date', 'desc')
-            ->get()
-            ->map(function ($borrowing) {
-                // === STATE PATTERN: Get state for each borrowing ===
-                $context = new BorrowingContext($borrowing->book, $borrowing);
+        $borrowings = $query->orderBy('borrow_date', 'desc')->get();
+        
+        // Fetch book data via API (cross-module: Borrowing → Book Management)
+        $apiUrl = config('app.api_url', config('app.url'));
+        
+        return $borrowings->map(function ($borrowing) use ($apiUrl) {
+            // Call BookApiController to get book data
+            $bookData = null;
+            try {
+                $bookResponse = Http::get("{$apiUrl}/api/books/{$borrowing->book_id}");
+                if ($bookResponse->successful() && $bookResponse->json()['success']) {
+                    $bookData = $bookResponse->json()['data'];
+                    
+                    // Reconstruct Book model for State Pattern
+                    $book = new Book((array)$bookData);
+                    $book->exists = true;
+                    $book->bookId = $bookData['bookId'];
+                } else {
+                    // Fallback if API fails
+                    $book = Book::find($borrowing->book_id);
+                }
+            } catch (Exception $e) {
+                // Fallback if API fails
+                $book = Book::find($borrowing->book_id);
+            }
+            
+            // === STATE PATTERN: Get state for each borrowing ===
+            $context = new BorrowingContext($book, $borrowing);
 
-                return [
-                    'id' => $borrowing->id,
-                    'user' => $borrowing->user,
-                    'book' => $borrowing->book,
-                    'borrow_date' => $borrowing->borrow_date,
-                    'due_date' => $borrowing->due_date,
-                    'return_date' => $borrowing->return_date,
-                    'status' => $borrowing->status,
-                    'fine_amount' => $borrowing->fine_amount,
-                    'fines' => $borrowing->fines,
-                    // State Pattern info
-                    'current_state' => $context->getStateName(),
-                    'can_return' => $context->canReturn(),
-                    'can_renew' => $context->canRenew(),
-                    'is_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast(),
-                    'days_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast()
-                        ? now()->diffInDays($borrowing->due_date) : 0,
-                ];
-            });
+            return [
+                'id' => $borrowing->id,
+                'user' => $borrowing->user,
+                'book' => $bookData ?? $book,  // Use API data if available
+                'borrow_date' => $borrowing->borrow_date,
+                'due_date' => $borrowing->due_date,
+                'return_date' => $borrowing->return_date,
+                'status' => $borrowing->status,
+                'fine_amount' => $borrowing->fine_amount,
+                'fines' => $borrowing->fines,
+                // State Pattern info
+                'current_state' => $context->getStateName(),
+                'can_return' => $context->canReturn(),
+                'can_renew' => $context->canRenew(),
+                'is_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast(),
+                'days_overdue' => $borrowing->status === 'borrowed' && $borrowing->due_date->isPast()
+                    ? now()->diffInDays($borrowing->due_date) : 0,
+            ];
+        });
     }
 
     /**
@@ -407,36 +477,68 @@ class BorrowingService
      */
     public function getFinesWithStates($userId = null, $isStaff = false)
     {
-        $query = Fine::with(['borrowing.book', 'borrowing.user', 'user']);
+        // Fetch fines with borrowing and user (same module relationships)
+        $query = Fine::with(['borrowing.user', 'user']);
 
         if (!$isStaff && $userId) {
             $query->where('user_id', $userId);
         }
 
-        return $query->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($fine) {
-                // === STATE PATTERN: Get state context ===
-                $stateInfo = 'N/A';
-                if ($fine->borrowing && $fine->borrowing->book) {
-                    $context = new BorrowingContext($fine->borrowing->book, $fine->borrowing);
-                    $stateInfo = $context->getStateName();
+        $fines = $query->orderBy('created_at', 'desc')->get();
+        
+        // Fetch book data via API (cross-module: Borrowing → Book Management)
+        $apiUrl = config('app.api_url', config('app.url'));
+        
+        return $fines->map(function ($fine) use ($apiUrl) {
+            // === STATE PATTERN: Get state context ===
+            $stateInfo = 'N/A';
+            $bookData = null;
+            
+            if ($fine->borrowing && $fine->borrowing->book_id) {
+                try {
+                    // Call BookApiController to get book data
+                    $bookResponse = Http::get("{$apiUrl}/api/books/{$fine->borrowing->book_id}");
+                    if ($bookResponse->successful() && $bookResponse->json()['success']) {
+                        $bookData = $bookResponse->json()['data'];
+                        
+                        // Reconstruct Book model for State Pattern
+                        $book = new Book((array)$bookData);
+                        $book->exists = true;
+                        $book->bookId = $bookData['bookId'];
+                        
+                        $context = new BorrowingContext($book, $fine->borrowing);
+                        $stateInfo = $context->getStateName();
+                    }
+                } catch (Exception $e) {
+                    // Fallback if API fails
+                    $book = Book::find($fine->borrowing->book_id);
+                    if ($book) {
+                        $context = new BorrowingContext($book, $fine->borrowing);
+                        $stateInfo = $context->getStateName();
+                    }
                 }
+            }
+            
+            // Add book data to borrowing object for view access
+            $borrowingData = $fine->borrowing;
+            if ($borrowingData && $bookData) {
+                $borrowingData->book = $bookData;
+            }
 
-                return [
-                    'id' => $fine->id,
-                    'user' => $fine->user,
-                    'borrowing' => $fine->borrowing,
-                    'amount' => $fine->amount,
-                    'reason' => $fine->reason,
-                    'status' => $fine->status,
-                    'paid_date' => $fine->paid_date,
-                    'payment_method' => $fine->payment_method,
-                    'created_at' => $fine->created_at,
-                    // State Pattern info
-                    'borrowing_state' => $stateInfo,
-                    'fine_origin' => 'Generated from Overdue state transition'
-                ];
+            return [
+                'id' => $fine->id,
+                'user' => $fine->user,
+                'borrowing' => $borrowingData,
+                'amount' => $fine->amount,
+                'reason' => $fine->reason,
+                'status' => $fine->status,
+                'paid_date' => $fine->paid_date,
+                'payment_method' => $fine->payment_method,
+                'created_at' => $fine->created_at,
+                // State Pattern info
+                'borrowing_state' => $stateInfo,
+                'fine_origin' => 'Generated from Overdue state transition'
+            ];
             });
     }
 
@@ -578,10 +680,30 @@ class BorrowingService
      */
     public function getUserFines($userId)
     {
-        return Fine::byUser($userId)
-            ->with(['borrowing.book'])
+        // Fetch fines with borrowing data (same module)
+        $fines = Fine::byUser($userId)
+            ->with(['borrowing'])
             ->orderBy('created_at', 'desc')
             ->get();
+        
+        // Fetch book data via API for each fine (cross-module: Borrowing → Book Management)
+        $apiUrl = config('app.api_url', config('app.url'));
+        
+        return $fines->map(function ($fine) use ($apiUrl) {
+            if ($fine->borrowing && $fine->borrowing->book_id) {
+                try {
+                    // Call BookApiController to get book data
+                    $bookResponse = Http::get("{$apiUrl}/api/books/{$fine->borrowing->book_id}");
+                    if ($bookResponse->successful() && $bookResponse->json()['success']) {
+                        $fine->borrowing->book = $bookResponse->json()['data'];
+                    }
+                } catch (Exception $e) {
+                    // If API fails, leave book as null or fetch from DB as fallback
+                    $fine->borrowing->book = Book::find($fine->borrowing->book_id);
+                }
+            }
+            return $fine;
+        });
     }
 
     /**
@@ -589,6 +711,10 @@ class BorrowingService
      */
     public function getBookAvailability($bookId)
     {
+        // Validate book exists via API (cross-module)
+        $bookData = $this->getBookFromApi($bookId);
+        
+        // Get model for detailed queries
         $book = Book::findOrFail($bookId);
 
         // Get borrowing and reservation data from local DB

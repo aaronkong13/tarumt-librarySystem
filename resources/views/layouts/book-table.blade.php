@@ -58,9 +58,13 @@
                 @endif
             </td>
             <td class="py-4 px-6">
-                <button onclick="openBorrowingHistoryModal({{ $book->bookId }}, '{{ addslashes($book->title) }}')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200">
+                <button onclick="openBorrowingHistoryModal({{ $book->bookId }}, '{{ addslashes($book->title) }}')" 
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200"
+                        id="circ-btn-{{ $book->bookId }}">
                     <i class="fa-solid fa-rotate-right"></i>
-                    <span>{{ $book->borrowing_stats['total_borrows'] ?? 0 }} Total</span>
+                    <span id="circ-count-{{ $book->bookId }}">
+                        <i class="fa-solid fa-spinner fa-spin text-xs"></i>
+                    </span>
                 </button>
             </td>
             <td class="py-4 px-6 text-right">
@@ -278,11 +282,17 @@ function openBorrowingHistoryModal(bookId, bookTitle) {
     // Use API_URL from config (allows frontend/backend separation on different ports)
     const apiUrl = '{{ config("app.api_url") ?? config("app.url") }}';
     
-    // Fetch borrowing history from controller
-    fetch(`${apiUrl}/api/books/${bookId}/borrowing-history`, {
+    // Debug: Log the URL being called
+    console.log('Calling API:', `${apiUrl}/api/borrowings/books/${bookId}/stats`);
+    
+    // Call BorrowingApiController directly (cross-module: Book → Borrowing)
+    fetch(`${apiUrl}/api/borrowings/books/${bookId}/stats`, {
+        method: 'GET',
+        credentials: 'include',  // Include cookies for session-based auth
         headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',  // Identify as AJAX request
         }
     })
         .then(response => {
@@ -296,8 +306,13 @@ function openBorrowingHistoryModal(bookId, bookTitle) {
                 throw new Error(data.message || 'Failed to load borrowing history');
             }
 
-            const stats = data.borrowing_stats;
-            const history = data.borrowing_stats.history || [];
+            console.log('API Response:', data);  // Debug: log full response
+            
+            const stats = data.data;  // BorrowingApiController returns data directly
+            const history = data.data.history || [];
+            
+            console.log('Stats:', stats);  // Debug: log stats
+            console.log('History:', history);  // Debug: log history
             
             let html = `
                 <div class="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
@@ -375,6 +390,38 @@ function closeBorrowingHistoryModal() {
         document.body.style.overflow = '';
     }
 }
+
+// Load borrowing counts for all books on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const apiUrl = '{{ config("app.api_url") ?? config("app.url") }}';
+    
+    // Find all circulation count elements
+    document.querySelectorAll('[id^="circ-count-"]').forEach(element => {
+        const bookId = element.id.replace('circ-count-', '');
+        
+        // Fetch borrowing stats for this book
+        fetch(`${apiUrl}/api/borrowings/books/${bookId}/stats`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                element.textContent = `${data.data.total_borrows} Total`;
+            } else {
+                element.textContent = '0 Total';
+            }
+        })
+        .catch(error => {
+            console.error(`Error loading count for book ${bookId}:`, error);
+            element.textContent = '0 Total';
+        });
+    });
+});
 
 document.addEventListener('click', function(event) {
     const modal = document.getElementById('assignModal');

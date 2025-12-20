@@ -578,4 +578,47 @@ class BorrowingApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * GET /api/borrowings/books/{bookId}/stats
+     * Get borrowing statistics and history for a specific book
+     */
+    public function bookStats($bookId): JsonResponse
+    {
+        try {
+            $stats = $this->borrowingService->getBookBorrowingStats($bookId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book borrowing statistics retrieved successfully',
+                'data' => [
+                    'total_borrows' => $stats['total_borrows'],
+                    'completed_borrows' => $stats['completed_borrows'],
+                    'currently_borrowed' => $stats['currently_borrowed'],
+                    'unique_borrowers' => $stats['unique_borrowers'],
+                    'history' => $stats['history']->map(function($record) {
+                        return [
+                            'id' => $record->id,  // Changed from borrowingId
+                            'user' => [
+                                'id' => $record->user->id,  // Changed from userId
+                                'name' => $record->user->name,
+                                'email' => $record->user->email,
+                            ],
+                            'borrow_date' => $record->borrow_date,
+                            'return_date' => $record->return_date,
+                            'due_date' => $record->due_date,
+                            'status' => $record->return_date ? 'Returned' : 'Borrowed',
+                            'is_overdue' => $record->due_date && !$record->return_date && now()->gt($record->due_date),
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving borrowing statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

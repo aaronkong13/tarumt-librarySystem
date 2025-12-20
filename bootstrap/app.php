@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'check.staff' => \App\Http\Middleware\CheckStaff::class,
         ]);
+        
+        // Enable CORS for cross-origin requests between frontend (8000) and backend (8001)
+        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        
+        // Block API routes on frontend server (port 8000)
+        $middleware->append(\App\Http\Middleware\BlockApiRoutesOnFrontend::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

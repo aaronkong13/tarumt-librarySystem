@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +56,17 @@ Route::prefix('fines')->middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['web'])->group(function () {
+
+    // =====================================================================
+    // BORROWING API ENDPOINTS (for cross-module access)
+    // Note: Using 'web' middleware only for session-based cross-origin requests
+    // =====================================================================
+    Route::prefix('borrowings')->group(function () {
+        // Get borrowing statistics for a specific book
+        // No auth required since it's read-only stats and called from authenticated frontend
+        Route::get('/books/{bookId}/stats', [BorrowingApiController::class, 'bookStats'])
+            ->name('api.borrowings.book-stats');
+    });
 
     // =====================================================================
     // BOOK API ENDPOINTS (REST)

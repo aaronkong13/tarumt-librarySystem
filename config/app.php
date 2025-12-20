@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API URL (Backend Server)
+    |--------------------------------------------------------------------------
+    |
+    | This is the base URL for API calls. In a frontend/backend separation
+    | architecture, this points to the backend server (e.g., port 8001).
+    | The frontend (port 8000) uses this to make cross-server API calls.
+    |
+    */
+
+    'api_url' => env('API_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

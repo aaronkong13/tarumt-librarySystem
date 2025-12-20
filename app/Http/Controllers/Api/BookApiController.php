@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\BookService;
 use App\Services\BookSecurityService;
-use App\Services\BorrowingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 
 /**
  * BookApiController - REST API for Book Module
@@ -19,13 +19,11 @@ class BookApiController extends Controller
 {
     private BookService $bookService;
     private BookSecurityService $securityService;
-    private BorrowingService $borrowingService;
 
-    public function __construct(BookService $bookService, BookSecurityService $securityService, BorrowingService $borrowingService)
+    public function __construct(BookService $bookService, BookSecurityService $securityService)
     {
         $this->bookService = $bookService;
         $this->securityService = $securityService;
-        $this->borrowingService = $borrowingService;
     }
 
     /**
@@ -356,11 +354,13 @@ class BookApiController extends Controller
     /**
      * GET /api/books/{id}/borrowing-history
      * Get borrowing history for a specific book
+     * 
+     * Cross-Module API Call: Book Module → Borrowing Module
      */
     public function borrowingHistory(int $id): JsonResponse
     {
         try {
-            // Verify book exists
+            // Verify book exists (same module, direct access OK)
             $book = $this->bookService->getBookById($id);
             if (!$book) {
                 return response()->json([
@@ -369,8 +369,22 @@ class BookApiController extends Controller
                 ], 404);
             }
 
-            // Get borrowing stats and history
-            $stats = $this->borrowingService->getBookBorrowingStats($id);
+            // Call BorrowingApiController via HTTP (cross-module: Book → Borrowing)
+            $apiUrl = config('app.api_url', config('app.url'));
+            $response = Http::withHeaders([
+                'Accept' => 'application/json',
+                'Authorization' => request()->header('Authorization'),
+            ])->get("{$apiUrl}/api/borrowings/books/{$id}/stats");
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to retrieve borrowing statistics',
+                    'error' => $response->json()['message'] ?? 'Unknown error',
+                ], $response->status());
+            }
+
+            $borrowingData = $response->json()['data'];
 
             return response()->json([
                 'success' => true,
@@ -381,26 +395,7 @@ class BookApiController extends Controller
                     'author' => $book->author,
                     'isbn' => $book->isbn,
                 ],
-                'borrowing_stats' => [
-                    'total_borrows' => $stats['total_borrows'],
-                    'completed_borrows' => $stats['completed_borrows'],
-                    'currently_borrowed' => $stats['currently_borrowed'],
-                    'unique_borrowers' => $stats['unique_borrowers'],
-                    'history' => $stats['history']->map(function($record) {
-                        return [
-                            'id' => $record->borrowingId,
-                            'user' => [
-                                'id' => $record->user->userId,
-                                'name' => $record->user->name,
-                                'email' => $record->user->email,
-                            ],
-                            'borrow_date' => $record->borrow_date,
-                            'return_date' => $record->return_date,
-                            'due_date' => $record->due_date,
-                            'status' => $record->return_date ? 'Returned' : 'Borrowed',
-                        ];
-                    })->toArray(),
-                ],
+                'borrowing_stats' => $borrowingData,
             ]);
         } catch (\Exception $e) {
             return response()->json([

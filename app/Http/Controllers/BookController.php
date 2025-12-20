@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Services\BookSecurityService;
 use App\Services\BookService;
-use App\Services\BorrowingService;
 use App\Services\BookSearch\BookSearchContext;
 use App\Services\BookSearch\Strategies\CategoryFilter;
 use App\Services\BookSearch\Strategies\KeywordFilter;
@@ -15,6 +14,7 @@ use App\Services\BookSearch\Strategies\StatusFilter;
 use App\Services\BookSearch\Strategies\YearRangeFilter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 /**
  * BookController - Handles book management web UI
@@ -30,7 +30,6 @@ use Illuminate\Support\Facades\Auth;
 class BookController extends Controller
 {
     private BookService $bookService;
-    private BorrowingService $borrowingService;
     private BookSearchContext $searchContext;
 
     public function __construct()
@@ -46,7 +45,6 @@ class BookController extends Controller
         ]);
 
         $this->bookService = new BookService($this->searchContext);
-        $this->borrowingService = new BorrowingService();
     }
 
     /**
@@ -105,6 +103,18 @@ class BookController extends Controller
 
         // Get filtered books from database
         $books = $this->bookService->getFilteredBooks($request, 10);
+
+        // Add placeholder for borrowing stats (will be loaded via AJAX when user clicks circulation button)
+        // This avoids making multiple API calls on initial page load which causes lag
+        $books->getCollection()->transform(function ($book) {
+            $book->borrowing_stats = [
+                'total_borrows' => '...',  // Placeholder - loaded via AJAX modal
+                'completed_borrows' => 0,
+                'currently_borrowed' => 0,
+                'unique_borrowers' => 0,
+            ];
+            return $book;
+        });
 
         // If this is an AJAX request (filter/sort from JavaScript)
         if ($request->ajax()) {
