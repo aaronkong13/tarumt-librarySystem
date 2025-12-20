@@ -168,6 +168,87 @@
             </div>
         </div>
 
+        <!-- Borrowing History Section (Staff/Admin viewing Student) -->
+        @if($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()) && isset($borrowingHistory) && $borrowingHistory->count() > 0)
+        <div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6 bg-indigo-600">
+                <h3 class="text-lg leading-6 font-bold text-white flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>
+                    Borrowing History
+                </h3>
+                <p class="mt-1 text-sm text-indigo-100">Student's book borrowing records</p>
+            </div>
+            <div class="border-t border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($borrowingHistory as $borrowing)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        @if($borrowing->book->cover_image)
+                                            <img src="data:image/jpeg;base64,{{ base64_encode($borrowing->book->cover_image) }}" 
+                                                 alt="{{ $borrowing->book->title }}" 
+                                                 class="w-10 h-14 object-cover rounded shadow-sm mr-3">
+                                        @else
+                                            <div class="w-10 h-14 bg-gray-200 rounded flex items-center justify-center mr-3">
+                                                <i class="fa-solid fa-book text-gray-400"></i>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">{{ $borrowing->book->title }}</div>
+                                            <div class="text-sm text-gray-500">{{ $borrowing->book->author }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ $borrowing->borrow_date->format('M j, Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ $borrowing->due_date->format('M j, Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ $borrowing->return_date ? $borrowing->return_date->format('M j, Y') : '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($borrowing->status === 'returned')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            <i class="fa-solid fa-circle-check mr-1"></i> Returned
+                                        </span>
+                                    @elseif($borrowing->status === 'borrowed')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            <i class="fa-solid fa-book-open mr-1"></i> Borrowed
+                                        </span>
+                                    @elseif($borrowing->status === 'overdue')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            <i class="fa-solid fa-clock mr-1"></i> Overdue
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @elseif($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()) && (!isset($borrowingHistory) || $borrowingHistory->count() === 0))
+        <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+            <i class="fa-solid fa-book-open text-gray-300 text-4xl mb-3"></i>
+            <p class="text-gray-600 font-medium">No borrowing history</p>
+            <p class="text-sm text-gray-500 mt-1">This student hasn't borrowed any books yet</p>
+        </div>
+        @endif
+
         <div class="mt-4 text-center text-xs text-gray-400">
             Secure Library Management System &copy; 2025
         </div>

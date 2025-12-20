@@ -86,11 +86,14 @@ class AuthController extends Controller
             // Factory Pattern: Create Student user
             $user = UserFactory::createStudent($validatedData);
 
+            // Send email verification notification
+            $user->sendEmailVerificationNotification();
+
             // Authentication: Log in the newly registered user
             Auth::login($user);
 
-            return redirect('/dashboard')
-                ->with('success', 'Registration successful! Welcome to the library system.');
+            return redirect()->route('verification.notice')
+                ->with('success', 'Registration successful! Please verify your email address.');
         } catch (ValidationException $e) {
             return redirect()->back()
                 ->withErrors($e->validator)
@@ -110,7 +113,7 @@ class AuthController extends Controller
         // Authentication Service: Logout user
         AuthenticationService::logout();
 
-        return redirect('/login')
+        return redirect()->route('login')
             ->with('success', 'You have been logged out successfully.');
     }
 
@@ -267,5 +270,58 @@ class AuthController extends Controller
         imagedestroy($resizedImage);
         
         return $compressed;
+    }
+
+    /**
+     * Show email verification notice
+     */
+    public function showVerificationNotice()
+    {
+        return Auth::user()->hasVerifiedEmail()
+            ? redirect('/dashboard')
+            : view('auth.verify-email');
+    }
+
+    /**
+     * Verify email address
+     */
+    public function verifyEmail(Request $request)
+    {
+        $user = \App\Models\User::findOrFail($request->route('id'));
+
+        // Check if the hash matches
+        if (!hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+            return redirect()->route('verification.notice')
+                ->with('error', 'Invalid verification link.');
+        }
+
+        // Check if already verified
+        if ($user->hasVerifiedEmail()) {
+            return redirect('/dashboard')
+                ->with('info', 'Email already verified.');
+        }
+
+        // Mark email as verified
+        if ($user->markEmailAsVerified()) {
+            return redirect('/dashboard')
+                ->with('success', 'Email verified successfully! Welcome to the library system.');
+        }
+
+        return redirect()->route('verification.notice')
+            ->with('error', 'Verification failed. Please try again.');
+    }
+
+    /**
+     * Resend verification email
+     */
+    public function resendVerificationEmail(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect('/dashboard');
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('success', 'Verification link sent! Please check your email.');
     }
 }
