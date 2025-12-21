@@ -405,4 +405,15 @@ class ReservationService
             ];
         })->toArray();
     }
+
+    /**
+     * Get user's reservation history (all reservations, not just active ones)
+     */
+    public function getUserReservationHistory(int $userId)
+    {
+        return Reservation::where('user_id', $userId)
+            ->with('book')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
 }

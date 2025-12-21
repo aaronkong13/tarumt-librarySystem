@@ -168,8 +168,8 @@
             </div>
         </div>
 
-        <!-- Borrowing History Section (Staff/Admin viewing Student) -->
-        @if($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()) && isset($borrowingHistory) && $borrowingHistory->count() > 0)
+        <!-- Borrowing History Section (Own profile or Staff/Admin viewing Student) -->
+        @if((Auth::id() === $user->id || ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()))) && isset($borrowingHistory) && count($borrowingHistory) > 0)
         <div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6 bg-indigo-600">
                 <h3 class="text-lg leading-6 font-bold text-white flex items-center">
@@ -195,9 +195,9 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        @if($borrowing->book->cover_image)
-                                            <img src="data:image/jpeg;base64,{{ base64_encode($borrowing->book->cover_image) }}" 
-                                                 alt="{{ $borrowing->book->title }}" 
+                                        @if($borrowing['book_cover_image'])
+                                            <img src="data:image/jpeg;base64,{{ $borrowing['book_cover_image'] }}" 
+                                                 alt="{{ $borrowing['book_title'] }}" 
                                                  class="w-10 h-14 object-cover rounded shadow-sm mr-3">
                                         @else
                                             <div class="w-10 h-14 bg-gray-200 rounded flex items-center justify-center mr-3">
@@ -205,30 +205,30 @@
                                             </div>
                                         @endif
                                         <div>
-                                            <div class="text-sm font-medium text-gray-900">{{ $borrowing->book->title }}</div>
-                                            <div class="text-sm text-gray-500">{{ $borrowing->book->author }}</div>
+                                            <div class="text-sm font-medium text-gray-900">{{ $borrowing['book_title'] }}</div>
+                                            <div class="text-sm text-gray-500">{{ $borrowing['book_author'] }}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $borrowing->borrow_date->format('M j, Y') }}
+                                    {{ \Carbon\Carbon::parse($borrowing['borrow_date'])->format('M j, Y') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $borrowing->due_date->format('M j, Y') }}
+                                    {{ \Carbon\Carbon::parse($borrowing['due_date'])->format('M j, Y') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $borrowing->return_date ? $borrowing->return_date->format('M j, Y') : '-' }}
+                                    {{ $borrowing['return_date'] ? \Carbon\Carbon::parse($borrowing['return_date'])->format('M j, Y') : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    @if($borrowing->status === 'returned')
+                                    @if($borrowing['status'] === 'returned')
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                             <i class="fa-solid fa-circle-check mr-1"></i> Returned
                                         </span>
-                                    @elseif($borrowing->status === 'borrowed')
+                                    @elseif($borrowing['status'] === 'borrowed')
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                             <i class="fa-solid fa-book-open mr-1"></i> Borrowed
                                         </span>
-                                    @elseif($borrowing->status === 'overdue')
+                                    @elseif($borrowing['status'] === 'overdue')
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                             <i class="fa-solid fa-clock mr-1"></i> Overdue
                                         </span>
@@ -241,11 +241,88 @@
                 </div>
             </div>
         </div>
-        @elseif($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()) && (!isset($borrowingHistory) || $borrowingHistory->count() === 0))
+        @elseif((Auth::id() === $user->id || ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()))) && (!isset($borrowingHistory) || count($borrowingHistory) === 0))
         <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
             <i class="fa-solid fa-book-open text-gray-300 text-4xl mb-3"></i>
             <p class="text-gray-600 font-medium">No borrowing history</p>
-            <p class="text-sm text-gray-500 mt-1">This student hasn't borrowed any books yet</p>
+            <p class="text-sm text-gray-500 mt-1">This user hasn't borrowed any books yet</p>
+        </div>
+        @endif
+
+        <!-- Reservation Records Section -->
+        @if((Auth::id() === $user->id || $user->isStudent()) && isset($reservations) && count($reservations) > 0)
+        <div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6 bg-blue-600">
+                <h3 class="text-lg leading-6 font-bold text-white flex items-center">
+                    <i class="fa-solid fa-calendar-check mr-2"></i>
+                    Reservation Records
+                </h3>
+                <p class="mt-1 text-sm text-blue-100">Student's book reservation records</p>
+            </div>
+            <div class="border-t border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue Position</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($reservations as $reservation)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        @if($reservation['book_cover_image'] ?? null)
+                                            <img src="data:image/jpeg;base64,{{ $reservation['book_cover_image'] }}" 
+                                                 alt="{{ $reservation['book_title'] }}" 
+                                                 class="w-10 h-14 object-cover rounded shadow-sm mr-3">
+                                        @else
+                                            <div class="w-10 h-14 bg-gray-200 rounded flex items-center justify-center mr-3">
+                                                <i class="fa-solid fa-book text-gray-400"></i>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">{{ $reservation['book_title'] }}</div>
+                                            <div class="text-sm text-gray-500">{{ $reservation['book_author'] }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ \Carbon\Carbon::parse($reservation['reservation_date'])->format('M j, Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ $reservation['queue_position'] ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($reservation['status'] === 'active')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            <i class="fa-solid fa-clock mr-1"></i> Active
+                                        </span>
+                                    @elseif($reservation['status'] === 'notified')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            <i class="fa-solid fa-bell mr-1"></i> Notified
+                                        </span>
+                                    @elseif($reservation['status'] === 'cancelled')
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                            <i class="fa-solid fa-times mr-1"></i> Cancelled
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @elseif((Auth::id() === $user->id || $user->isStudent()) && (!isset($reservations) || count($reservations) === 0))
+        <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+            <i class="fa-solid fa-calendar-check text-gray-300 text-4xl mb-3"></i>
+            <p class="text-gray-600 font-medium">No reservation records</p>
+            <p class="text-sm text-gray-500 mt-1">This user hasn't made any reservations yet</p>
         </div>
         @endif
 

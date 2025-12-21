@@ -382,4 +382,47 @@ class ReservationApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * GET /api/reservations/users/{userId}/history
+     * Get reservation history for a specific user (for user management)
+     */
+    public function getUserReservations($userId): JsonResponse
+    {
+        try {
+            $reservations = $this->reservationService->getUserReservationHistory($userId);
+
+            // Process reservations to make them JSON serializable
+            $processedReservations = $reservations->map(function ($reservation) {
+                return [
+                    'id' => $reservation->id,
+                    'user_id' => $reservation->user_id,
+                    'book_id' => $reservation->book_id,
+                    'book_title' => $reservation->book ? $reservation->book->title : 'Book not found',
+                    'book_author' => $reservation->book ? $reservation->book->author : 'Unknown',
+                    'book_isbn' => $reservation->book ? $reservation->book->isbn : null,
+                    'book_cover_image' => $reservation->book ? ($reservation->book->cover_image ? base64_encode($reservation->book->cover_image) : null) : null,
+                    'reservation_date' => $reservation->reservation_date,
+                    'expiry_date' => $reservation->expiry_date,
+                    'status' => $reservation->status,
+                    'queue_position' => $reservation->queue_position,
+                    'notified_at' => $reservation->notified_at,
+                    'created_at' => $reservation->created_at,
+                    'updated_at' => $reservation->updated_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User reservations retrieved successfully',
+                'data' => $processedReservations,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving user reservations',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

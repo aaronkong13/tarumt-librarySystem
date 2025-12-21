@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\UserService;
+use App\Services\ReservationService;
+use App\Services\FineService;
+use App\Services\BorrowingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -16,10 +19,16 @@ use Illuminate\Http\JsonResponse;
 class UserApiController extends Controller
 {
     private UserService $userService;
+    private ReservationService $reservationService;
+    private FineService $fineService;
+    private BorrowingService $borrowingService;
 
-    public function __construct(UserService $userService)
+    public function __construct(UserService $userService, ReservationService $reservationService, FineService $fineService, BorrowingService $borrowingService)
     {
         $this->userService = $userService;
+        $this->reservationService = $reservationService;
+        $this->fineService = $fineService;
+        $this->borrowingService = $borrowingService;
     }
 
     /**
@@ -32,10 +41,16 @@ class UserApiController extends Controller
             $perPage = $request->query('per_page', 10);
             $users = $this->userService->getPaginatedUsers($perPage);
 
+            // Process users data to handle BLOB fields
+            $processedUsers = $users->items();
+            foreach ($processedUsers as $user) {
+                $this->processUserForApi($user);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Users retrieved successfully',
-                'data' => $users->items(),
+                'data' => $processedUsers,
                 'pagination' => [
                     'total' => $users->total(),
                     'per_page' => $users->perPage(),
@@ -73,6 +88,9 @@ class UserApiController extends Controller
                 ob_end_clean();
             }
             ob_start();
+
+            // Process user data to handle BLOB fields
+            $this->processUserForApi($user);
 
             return response()->json([
                 'success' => true,
@@ -284,6 +302,63 @@ class UserApiController extends Controller
                 'message' => 'Error retrieving statistics',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * GET /api/users/{id}/reservations
+     * Get user's reservations
+     */
+    public function getUserReservations($id): JsonResponse
+    {
+        try {
+            $reservations = $this->reservationService->getUserReservations($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User reservations retrieved successfully',
+                'data' => $reservations,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving user reservations',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/users/{id}/fines
+     * Get user's fines
+     */
+    public function getUserFines($id): JsonResponse
+    {
+        try {
+            $fines = $this->fineService->getUserFinesWithStates($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User fines retrieved successfully',
+                'data' => $fines,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving user fines',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Process user data for API response (handle BLOB fields)
+     */
+    private function processUserForApi(&$user)
+    {
+        if ($user && isset($user->profile_image) && $user->profile_image) {
+            // Convert BLOB to base64 data URI
+            $user->profile_image = 'data:image/jpeg;base64,' . base64_encode($user->profile_image);
         }
     }
 }

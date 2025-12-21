@@ -7,6 +7,7 @@ use App\Services\BorrowingService;
 use App\Services\FineService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * BorrowingApiController - REST API for Borrowing & Fine Module
@@ -41,7 +42,7 @@ class BorrowingApiController extends Controller
      */
     public function borrow(Request $request): JsonResponse
     {
-        $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
+        $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
 
         try {
             $request->validate([
@@ -50,7 +51,7 @@ class BorrowingApiController extends Controller
                 'duration_days' => 'nullable|integer|min:1|max:30',
             ]);
 
-            $userId = $isStaff ? $request->user_id : auth()->id();
+            $userId = $isStaff ? $request->user_id : Auth::id();
             $durationDays = $request->duration_days ?? null;
 
             $borrowing = $this->borrowingService->borrowBook($userId, $request->book_id, $durationDays);
@@ -144,8 +145,8 @@ class BorrowingApiController extends Controller
     public function history(Request $request): JsonResponse
     {
         try {
-            $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
-            $userId = $isStaff && $request->user_id ? $request->user_id : auth()->id();
+            $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
+            $userId = $isStaff && $request->user_id ? $request->user_id : Auth::id();
 
             $borrowings = $this->borrowingService->getUserBorrowingHistory($userId);
 
@@ -170,8 +171,8 @@ class BorrowingApiController extends Controller
     public function activeBorrowings(Request $request): JsonResponse
     {
         try {
-            $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
-            $userId = $isStaff && $request->user_id ? $request->user_id : auth()->id();
+            $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
+            $userId = $isStaff && $request->user_id ? $request->user_id : Auth::id();
 
             $borrowings = $this->borrowingService->getUserActiveBorrowings($userId);
 
@@ -195,7 +196,7 @@ class BorrowingApiController extends Controller
      */
     public function reserve(Request $request): JsonResponse
     {
-        $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
+        $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
 
         try {
             $request->validate([
@@ -204,7 +205,7 @@ class BorrowingApiController extends Controller
                 'expiry_days' => 'nullable|integer|min:1|max:7',
             ]);
 
-            $userId = $isStaff ? $request->user_id : auth()->id();
+            $userId = $isStaff ? $request->user_id : Auth::id();
             $expiryDays = $request->expiry_days ?? null;
 
             $reservation = $this->borrowingService->reserveBook($userId, $request->book_id, $expiryDays);
@@ -309,15 +310,15 @@ class BorrowingApiController extends Controller
     public function fines(Request $request): JsonResponse
     {
         try {
-            $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
+            $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
             $status = $request->get('status');
 
             if ($isStaff) {
                 $fines = $this->fineService->getAllFinesWithStates($status);
                 $statistics = $this->fineService->getFineStatistics();
             } else {
-                $fines = $this->fineService->getUserFinesWithStates(auth()->id(), $status);
-                $statistics = $this->fineService->getUserFineSummary(auth()->id());
+                $fines = $this->fineService->getUserFinesWithStates(Auth::id(), $status);
+                $statistics = $this->fineService->getUserFineSummary(Auth::id());
             }
 
             return response()->json([
@@ -403,8 +404,8 @@ class BorrowingApiController extends Controller
         ]);
 
         try {
-            $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
-            $userId = $isStaff && $request->user_id ? $request->user_id : auth()->id();
+            $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
+            $userId = $isStaff && $request->user_id ? $request->user_id : Auth::id();
 
             $result = $this->fineService->payAllUserFines(
                 $userId,
@@ -504,8 +505,8 @@ class BorrowingApiController extends Controller
     public function userFineSummary($userId = null): JsonResponse
     {
         try {
-            $isStaff = in_array(auth()->user()->role, ['Staff', 'Admin']);
-            $targetUserId = $isStaff && $userId ? $userId : auth()->id();
+            $isStaff = in_array(Auth::user()->role, ['Staff', 'Admin']);
+            $targetUserId = $isStaff && $userId ? $userId : Auth::id();
 
             $summary = $this->fineService->getUserFineSummary($targetUserId);
 
@@ -529,8 +530,8 @@ class BorrowingApiController extends Controller
     public function checkUnpaidFines(): JsonResponse
     {
         try {
-            $hasUnpaid = $this->fineService->userHasUnpaidFines(auth()->id());
-            $totalUnpaid = $this->fineService->getUserTotalUnpaidFines(auth()->id());
+            $hasUnpaid = $this->fineService->userHasUnpaidFines(Auth::id());
+            $totalUnpaid = $this->fineService->getUserTotalUnpaidFines(Auth::id());
 
             return response()->json([
                 'success' => true,
@@ -617,6 +618,50 @@ class BorrowingApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving borrowing statistics',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/borrowings/users/{userId}/history
+     * Get borrowing history for a specific user (for user management)
+     */
+    public function getUserBorrowings($userId): JsonResponse
+    {
+        try {
+            $borrowings = $this->borrowingService->getUserBorrowingHistory($userId);
+
+            // Process borrowings to make them JSON serializable
+            $processedBorrowings = $borrowings->map(function ($borrowing) {
+                return [
+                    'id' => $borrowing->id,
+                    'user_id' => $borrowing->user_id,
+                    'book_id' => $borrowing->book_id,
+                    'book_title' => $borrowing->book->title,
+                    'book_author' => $borrowing->book->author,
+                    'book_isbn' => $borrowing->book->isbn,
+                    'book_cover_image' => $borrowing->book->cover_image ? base64_encode($borrowing->book->cover_image) : null,
+                    'borrow_date' => $borrowing->borrow_date,
+                    'due_date' => $borrowing->due_date,
+                    'return_date' => $borrowing->return_date,
+                    'status' => $borrowing->status,
+                    'fine_amount' => $borrowing->fine_amount,
+                    'notes' => $borrowing->notes,
+                    'created_at' => $borrowing->created_at,
+                    'updated_at' => $borrowing->updated_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User borrowings retrieved successfully',
+                'data' => $processedBorrowings,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving user borrowings',
                 'error' => $e->getMessage(),
             ], 500);
         }

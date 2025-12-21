@@ -65,6 +65,14 @@ Route::prefix('fines')->middleware(['auth:sanctum'])->group(function () {
 Route::get('/borrowings/books/{bookId}/stats', [BorrowingApiController::class, 'bookStats'])
     ->name('api.borrowings.book-stats');
 
+// USER BORROWING HISTORY API (for User Management module)
+Route::get('/borrowings/users/{userId}/history', [BorrowingApiController::class, 'getUserBorrowings'])
+    ->name('api.borrowings.user-history');
+
+// USER RESERVATION HISTORY API (for User Management module)
+Route::get('/reservations/users/{userId}/history', [ReservationApiController::class, 'getUserReservations'])
+    ->name('api.reservations.user-history');
+
 // BOOK API ENDPOINTS (for Borrowing module)
 Route::prefix('books')->group(function () {
     // Get available books
@@ -179,6 +187,14 @@ Route::middleware(['web'])->group(function () {
         // Get user statistics
         Route::get('/stats/overview', [UserApiController::class, 'stats'])
             ->name('api.users.stats');
+
+        // Get user's reservations
+        Route::get('/{id}/reservations', [UserApiController::class, 'getUserReservations'])
+            ->name('api.users.reservations');
+
+        // Get user's fines
+        Route::get('/{id}/fines', [UserApiController::class, 'getUserFines'])
+            ->name('api.users.fines');
     });
 
     // =====================================================================

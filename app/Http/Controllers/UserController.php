@@ -9,6 +9,8 @@ use App\Services\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * User Management Controller (INTERNAL MODULE ACCESS)
@@ -151,14 +153,44 @@ class UserController extends Controller
                 throw new \Exception('You do not have permission to view this profile.');
             }
 
-            // Get borrowing history if viewing a student (for Staff/Admin)
-            $borrowingHistory = null;
-            if ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin())) {
-                $borrowingService = app(\App\Services\BorrowingService::class);
-                $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
+            // Get borrowing history via API (for own profile or Staff/Admin viewing students)
+            $borrowingHistory = [];
+            if (Auth::id() === $user->id || ($user->isStudent() && (Auth::user()->isStaff() || Auth::user()->isAdmin()))) {
+                try {
+                    $apiUrl = config('app.api_url') . "/api/borrowings/users/{$id}/history";
+                    $response = Http::timeout(10)->get($apiUrl);
+                    
+                    if ($response->successful()) {
+                        // Handle potential BOM in response and decode JSON
+                        $body = preg_replace('/^\x{FEFF}/u', '', $response->body());
+                        $data = json_decode($body, true);
+                        $borrowingHistory = $data['data'] ?? [];
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail the page
+                    \Log::error('Failed to fetch user borrowings: ' . $e->getMessage());
+                }
             }
 
-            return view('users.show', compact('user', 'borrowingHistory'));
+            // Get reservations via API
+            $reservations = [];
+            if (Auth::id() === $user->id || $user->isStudent()) {
+                try {
+                    $apiUrl = config('app.api_url') . "/api/reservations/users/{$id}/history";
+                    $response = Http::timeout(10)->get($apiUrl);
+                    
+                    if ($response->successful()) {
+                        $body = preg_replace('/^\x{FEFF}/u', '', $response->body());
+                        $data = json_decode($body, true);
+                        $reservations = $data['data'] ?? [];
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail the page
+                    \Log::error('Failed to fetch user reservations: ' . $e->getMessage());
+                }
+            }
+
+            return view('users.show', compact('user', 'borrowingHistory', 'reservations'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -313,14 +345,54 @@ class UserController extends Controller
     {
         $user = Auth::user();
         
-        // Get borrowing history for students only
-        $borrowingHistory = null;
-        if ($user->isStudent()) {
-            $borrowingService = app(\App\Services\BorrowingService::class);
-            $borrowingHistory = $borrowingService->getUserBorrowingHistory($user->id);
+        // Get borrowing history via API (for all users, but only students can borrow)
+        $borrowingHistory = [];
+        try {
+            $apiUrl = config('app.api_url') . "/api/borrowings/users/{$user->id}/history";
+            Log::info("Fetching borrowing history from: " . $apiUrl);
+            $response = Http::get($apiUrl);
+            Log::info("API Response Status: " . $response->status());
+            Log::info("API Response Body: " . $response->body());
+            
+            if ($response->successful()) {
+                $body = $response->body();
+                // Remove BOM if present
+                if (substr($body, 0, 3) === "\xEF\xBB\xBF") {
+                    $body = substr($body, 3);
+                }
+                $data = json_decode($body, true);
+                Log::info("Parsed JSON data: " . json_encode($data));
+                $borrowingHistory = $data['data'] ?? $data ?? [];
+                Log::info("Final borrowing history count: " . count($borrowingHistory));
+            } else {
+                Log::error("API call failed with status: " . $response->status());
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the page
+            Log::error('Failed to fetch user borrowings: ' . $e->getMessage());
+        }
+
+        // Get reservations via API
+        $reservations = [];
+        try {
+            $apiUrl = config('app.api_url') . "/api/reservations/users/{$user->id}/history";
+            $response = Http::timeout(10)->get($apiUrl);
+            
+            if ($response->successful()) {
+                $body = $response->body();
+                // Remove BOM if present
+                if (substr($body, 0, 3) === "\xEF\xBB\xBF") {
+                    $body = substr($body, 3);
+                }
+                $data = json_decode($body, true);
+                $reservations = $data['data'] ?? [];
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the page
+            Log::error('Failed to fetch user reservations: ' . $e->getMessage());
         }
         
-        return view('users.profile', compact('user', 'borrowingHistory'));
+        return view('users.profile', compact('user', 'borrowingHistory', 'reservations'));
     }
 
     /**

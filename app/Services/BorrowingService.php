@@ -642,10 +642,7 @@ class BorrowingService
      */
     public function getUserBorrowingHistory($userId)
     {
-        return Borrowing::byUser($userId)
-            ->with(['book'])
-            ->orderBy('borrow_date', 'desc')
-            ->get();
+        return Borrowing::byUser($userId)->with(['book'])->orderBy('borrow_date', 'desc')->get();
     }
 
     /**
