@@ -99,6 +99,7 @@ class AuthenticationService
         $status = Password::reset(
             $credentials,
             function (User $user, string $password) {
+                \Log::info('Password reset callback called for user: ' . $user->email);
                 $user->forceFill([
                     'password' => Hash::make($password)
                 ])->setRememberToken(Str::random(60));
@@ -106,8 +107,11 @@ class AuthenticationService
                 $user->save();
 
                 event(new PasswordReset($user));
+                \Log::info('Password reset successful for user: ' . $user->email);
             }
         );
+
+        \Log::info('Password reset status: ' . $status);
 
         return $status === Password::PASSWORD_RESET
             ? 'Password has been reset successfully.'
