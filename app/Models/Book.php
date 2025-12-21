@@ -8,13 +8,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Book Model - Represents a physical book in the library system
- * 
+ *
  * This model tracks all book information including:
  * - Basic details (title, author, ISBN, year, category)
  * - Availability status (Available, Borrowed, Lost, Damaged)
  * - Cover image for display in UI
  * - Relationships with borrowings and reservations
- * 
+ *
  * Uses soft deletes so books are never permanently deleted from the system.
  */
 class Book extends Model
@@ -24,7 +24,7 @@ class Book extends Model
     // ═══════════════════════════════════════════════════════════════
     // TABLE CONFIGURATION
     // ═══════════════════════════════════════════════════════════════
-    
+
     protected $table = 'books';
     protected $primaryKey = 'bookId';
     public $incrementing = true;
@@ -41,7 +41,7 @@ class Book extends Model
     // ═══════════════════════════════════════════════════════════════
     // MASS ASSIGNMENT PROTECTION
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
      * Fields that can be mass assigned
      * @var array
@@ -59,7 +59,7 @@ class Book extends Model
     // ═══════════════════════════════════════════════════════════════
     // TYPE CASTING
     // ═══════════════════════════════════════════════════════════════
-    
+
     /**
      * Automatic type casting for database columns
      * @var array
@@ -119,7 +119,7 @@ class Book extends Model
     /**
      * Check if this book is available for borrowing
      * A book is available if its status is 'Available' AND it's not currently borrowed
-     * 
+     *
      * @return bool
      */
     public function isAvailable(): bool
@@ -129,7 +129,7 @@ class Book extends Model
 
     /**
      * Check if this book is currently borrowed by someone
-     * 
+     *
      * @return bool
      */
     public function isBorrowed(): bool
@@ -138,8 +138,19 @@ class Book extends Model
     }
 
     /**
+     * Check if this book has any active reservations
+     * Used by State Pattern to prevent renewals when others are waiting
+     *
+     * @return bool
+     */
+    public function hasActiveReservation(): bool
+    {
+        return $this->activeReservations()->exists();
+    }
+
+    /**
      * Get a human-readable status display string
-     * 
+     *
      * @return string
      */
     public function getStatusLabel(): string
