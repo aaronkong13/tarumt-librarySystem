@@ -100,7 +100,17 @@ class Book extends Model
             ->where('status', 'borrowed')
             ->latest();
     }
-
+ 
+       /**
+     * Check if this book has any active reservations
+     * Used by State Pattern to prevent renewals when others are waiting
+     *
+     * @return bool
+     */
+    public function hasActiveReservation(): bool
+    {
+        return $this->activeReservations()->exists();
+    }
     /**
      * Get active reservations for this book
      * Only returns reservations that haven't expired
