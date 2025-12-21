@@ -34,12 +34,18 @@ class BorrowingController extends Controller
         // Fetch available books via BookApiController::getAvailableBooks() (cross-module: Borrowing → Book)
         $apiUrl = config('app.api_url', config('app.url'));
         $availableBooks = [];
+        $students = [];
         
         try {
             $response = Http::get("{$apiUrl}/api/books/available");
             
             if ($response->successful()) {
-                $jsonData = $response->json();
+                $body = $response->body();
+                // Remove BOM if present
+                if (substr($body, 0, 3) === "\xEF\xBB\xBF") {
+                    $body = substr($body, 3);
+                }
+                $jsonData = json_decode($body, true);
                 
                 if ($jsonData && isset($jsonData['success']) && $jsonData['success']) {
                     $availableBooks = $jsonData['data'] ?? [];
@@ -60,9 +66,42 @@ class BorrowingController extends Controller
             \Log::error('Exception calling books API: ' . $e->getMessage());
             $availableBooks = [];
         }
+
+        // Fetch students for borrowing dropdown (cross-module: Borrowing → User)
+        try {
+            $response = Http::get("{$apiUrl}/api/users/role/Student");
+            
+            if ($response->successful()) {
+                $body = $response->body();
+                // Remove BOM if present
+                if (substr($body, 0, 3) === "\xEF\xBB\xBF") {
+                    $body = substr($body, 3);
+                }
+                $jsonData = json_decode($body, true);
+                
+                if ($jsonData && isset($jsonData['success']) && $jsonData['success']) {
+                    $students = $jsonData['data'] ?? [];
+                } else {
+                    \Log::error('API returned unsuccessful response for students', [
+                        'status' => $response->status(),
+                        'json' => $jsonData
+                    ]);
+                }
+            } else {
+                \Log::error('API call failed for students', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (Exception $e) {
+            // Handle API error gracefully
+            \Log::error('Exception calling users API: ' . $e->getMessage());
+            $students = [];
+        }
         
         return view('borrowings.index', [
-            'availableBooks' => $availableBooks
+            'availableBooks' => $availableBooks,
+            'students' => $students
         ]);
     }
 

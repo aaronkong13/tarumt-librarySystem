@@ -54,8 +54,8 @@ class UserService
         $query = User::withTrashed()
             ->where('role', '!=', 'Admin'); // Admin is hidden from list
 
-        // Staff can only view Students
-        if (Auth::user()->isStaff()) {
+        // Staff can only view Students (only if authenticated)
+        if (Auth::check() && Auth::user()->isStaff()) {
             $query->where('role', 'Student');
         }
 

@@ -243,8 +243,16 @@
                                             <input type="hidden" name="book_id" value="<?php echo e($bookObj->bookId); ?>">
                                             <?php if(in_array(Auth::user()->role, ['Staff', 'Admin'])): ?>
                                                 <div class="mb-2">
-                                                    <input type="number" name="user_id" placeholder="User ID" required
-                                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <select name="user_id" required
+                                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                        <option value="">Select Student</option>
+                                                        <?php $__currentLoopData = $students; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $student): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                            <option value="<?php echo e($student['id']); ?>">
+                                                                <?php echo e($student['name']); ?>
+
+                                                            </option>
+                                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                    </select>
                                                 </div>
                                             <?php endif; ?>
                                             <button type="submit" class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">

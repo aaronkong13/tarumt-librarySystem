@@ -240,8 +240,15 @@
                                             <input type="hidden" name="book_id" value="{{ $bookObj->bookId }}">
                                             @if(in_array(Auth::user()->role, ['Staff', 'Admin']))
                                                 <div class="mb-2">
-                                                    <input type="number" name="user_id" placeholder="User ID" required
-                                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <select name="user_id" required
+                                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                        <option value="">Select Student</option>
+                                                        @foreach($students as $student)
+                                                            <option value="{{ $student['id'] }}">
+                                                                {{ $student['name'] }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
                                                 </div>
                                             @endif
                                             <button type="submit" class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">

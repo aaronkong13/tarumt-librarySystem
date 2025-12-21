@@ -39,7 +39,7 @@ class UserApiController extends Controller
     {
         try {
             $perPage = $request->query('per_page', 10);
-            $users = $this->userService->getPaginatedUsers($perPage);
+            $users = $this->userService->getFilteredUsers($request, $perPage);
 
             // Process users data to handle BLOB fields
             $processedUsers = $users->items();
@@ -50,12 +50,14 @@ class UserApiController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Users retrieved successfully',
-                'data' => $processedUsers,
-                'pagination' => [
-                    'total' => $users->total(),
-                    'per_page' => $users->perPage(),
-                    'current_page' => $users->currentPage(),
-                    'last_page' => $users->lastPage(),
+                'data' => [
+                    'data' => $processedUsers,
+                    'pagination' => [
+                        'total' => $users->total(),
+                        'per_page' => $users->perPage(),
+                        'current_page' => $users->currentPage(),
+                        'last_page' => $users->lastPage(),
+                    ],
                 ],
             ]);
         } catch (\Exception $e) {
@@ -233,10 +235,18 @@ class UserApiController extends Controller
         try {
             $users = $this->userService->getUsersByRole($role);
 
+            // Process users data to return only id and name for dropdown
+            $processedUsers = $users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ];
+            });
+
             return response()->json([
                 'success' => true,
                 'message' => "Users with role '$role' retrieved successfully",
-                'data' => $users,
+                'data' => $processedUsers,
             ]);
         } catch (\Exception $e) {
             return response()->json([
