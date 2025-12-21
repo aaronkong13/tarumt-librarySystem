@@ -94,15 +94,12 @@
                 <!-- Pay All Button -->
                 @if($unpaidFines->isNotEmpty())
                 <div class="mb-6 flex justify-end">
-                    <form action="{{ route('fines.pay-all') }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" 
-                                class="px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30"
-                                onclick="return confirm('Pay all unpaid fines totaling RM {{ number_format($summary['total_unpaid_amount'], 2) }}?')">
-                            <i class="fa-solid fa-wallet mr-2"></i> 
-                            Pay All (RM {{ number_format($summary['total_unpaid_amount'], 2) }})
-                        </button>
-                    </form>
+                    <button type="button"
+                            onclick="openPaymentModal('all', {{ $summary['total_unpaid_amount'] }})"
+                            class="px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30">
+                        <i class="fa-solid fa-wallet mr-2"></i>
+                        Pay All (RM {{ number_format($summary['total_unpaid_amount'], 2) }})
+                    </button>
                 </div>
                 @endif
 
@@ -144,14 +141,11 @@
                                         </div>
                                         <div class="text-right">
                                             <p class="text-2xl font-bold text-red-600">RM {{ number_format($fine['amount'], 2) }}</p>
-                                            <form action="{{ route('fines.pay', $fine['id']) }}" method="POST" class="mt-2">
-                                                @csrf
-                                                <button type="submit" 
-                                                        class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                                                        onclick="return confirm('Confirm payment of RM {{ number_format($fine['amount'], 2) }}?')">
-                                                    <i class="fa-solid fa-credit-card mr-1"></i> Pay Now
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    onclick="openPaymentModal('{{ $fine['id'] }}', {{ $fine['amount'] }})"
+                                                    class="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                                                <i class="fa-solid fa-credit-card mr-1"></i> Pay Now
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -192,7 +186,7 @@
                                             RM {{ number_format($fine['amount'], 2) }}
                                         </p>
                                         <p class="text-xs text-gray-500">
-                                            {{ $fine['status'] === 'paid' ? 'Paid' : 'Waived' }} on 
+                                            {{ $fine['status'] === 'paid' ? 'Paid' : 'Waived' }} on
                                             {{ $fine['paid_date'] ? \Carbon\Carbon::parse($fine['paid_date'])->format('M d, Y') : \Carbon\Carbon::parse($fine['updated_at'])->format('M d, Y') }}
                                         </p>
                                     </div>
@@ -225,6 +219,218 @@
         </main>
 
     </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform transition-all">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-green-500 to-emerald-600 rounded-t-2xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-building-columns text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Bank Payment</h3>
+                            <p class="text-sm text-white/80">Enter your bank credentials</p>
+                        </div>
+                    </div>
+                    <button onclick="closePaymentModal()" class="text-white/80 hover:text-white transition-colors">
+                        <i class="fa-solid fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6">
+                <!-- Amount Display -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-xl text-center">
+                    <p class="text-sm text-gray-500 mb-1">Payment Amount</p>
+                    <p class="text-3xl font-bold text-green-600" id="paymentAmount">RM 0.00</p>
+                </div>
+
+                <!-- Bank Form -->
+                <form id="paymentForm" onsubmit="processPayment(event)">
+                    <input type="hidden" id="paymentFineId" value="">
+
+                    <div class="space-y-4">
+                        <!-- Bank Account Number -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fa-solid fa-credit-card mr-2 text-gray-400"></i>
+                                Bank Account Number
+                            </label>
+                            <input type="text"
+                                   id="bankAccount"
+                                   placeholder="Enter your bank account number"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                                   required>
+                        </div>
+
+                        <!-- Bank Password -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fa-solid fa-lock mr-2 text-gray-400"></i>
+                                Bank Password
+                            </label>
+                            <div class="relative">
+                                <input type="password"
+                                       id="bankPassword"
+                                       placeholder="Enter your bank password"
+                                       class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                                       required>
+                                <button type="button"
+                                        onclick="togglePassword()"
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                    <i class="fa-solid fa-eye" id="toggleIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        <div id="paymentError" class="hidden p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                            <i class="fa-solid fa-exclamation-circle mr-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+
+                        {{-- <!-- Info Note -->
+                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-600 text-sm">
+                            <i class="fa-solid fa-info-circle mr-2"></i>
+                            Demo credentials: Account: <strong>1234567890</strong>, Password: <strong>password123</strong>
+                        </div> --}}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3 mt-6">
+                        <button type="button"
+                                onclick="closePaymentModal()"
+                                class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                id="payButton"
+                                class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors">
+                            <i class="fa-solid fa-check mr-2"></i>
+                            Confirm Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Hardcoded bank credentials for demo
+        const VALID_BANK_ACCOUNT = '1234567890';
+        const VALID_BANK_PASSWORD = 'password123';
+
+        // Open payment modal
+        function openPaymentModal(fineId, amount) {
+            document.getElementById('paymentFineId').value = fineId;
+            document.getElementById('paymentAmount').textContent = 'RM ' + amount.toFixed(2);
+            document.getElementById('bankAccount').value = '';
+            document.getElementById('bankPassword').value = '';
+            document.getElementById('paymentError').classList.add('hidden');
+            document.getElementById('paymentModal').classList.remove('hidden');
+            document.getElementById('paymentModal').classList.add('flex');
+        }
+
+        // Close payment modal
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            document.getElementById('paymentModal').classList.remove('flex');
+        }
+
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('bankPassword');
+            const toggleIcon = document.getElementById('toggleIcon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        // Process payment
+        function processPayment(event) {
+            event.preventDefault();
+
+            const bankAccount = document.getElementById('bankAccount').value;
+            const bankPassword = document.getElementById('bankPassword').value;
+            const fineId = document.getElementById('paymentFineId').value;
+            const errorDiv = document.getElementById('paymentError');
+            const errorMessage = document.getElementById('errorMessage');
+            const payButton = document.getElementById('payButton');
+
+            // Validate credentials
+            if (bankAccount !== VALID_BANK_ACCOUNT || bankPassword !== VALID_BANK_PASSWORD) {
+                errorDiv.classList.remove('hidden');
+                errorMessage.textContent = 'Invalid bank account or password. Please try again.';
+                return;
+            }
+
+            // Hide error if validation passes
+            errorDiv.classList.add('hidden');
+
+            // Disable button and show loading
+            payButton.disabled = true;
+            payButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processing...';
+
+            // Determine the correct URL
+            let paymentUrl;
+            if (fineId === 'all') {
+                paymentUrl = '{{ route('fines.pay-all') }}';
+            } else {
+                paymentUrl = '{{ url('fines') }}/' + fineId + '/pay';
+            }
+
+            // Submit payment
+            fetch(paymentUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    payment_method: 'online'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closePaymentModal();
+                    alert('Payment successful! Thank you.');
+                    window.location.reload();
+                } else {
+                    errorDiv.classList.remove('hidden');
+                    errorMessage.textContent = data.message || 'Payment failed. Please try again.';
+                    payButton.disabled = false;
+                    payButton.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Payment';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.classList.remove('hidden');
+                errorMessage.textContent = 'An error occurred. Please try again.';
+                payButton.disabled = false;
+                payButton.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Payment';
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('paymentModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePaymentModal();
+            }
+        });
+    </script>
 
 </body>
 </html>

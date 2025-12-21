@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * BookApiController - REST API for Book Module
- * 
+ *
  * Provides JSON endpoints for CRUD operations on books.
  * Can be consumed by mobile apps, frontend frameworks, or external services.
  */
@@ -62,7 +62,7 @@ class BookApiController extends Controller
     {
         try {
             $books = $this->bookService->getFilteredBooks($request, 15);
-            
+
             // Convert BLOB cover_image to base64 for JSON serialization
             $cleanedBooks = array_map(function($book) {
                 if ($book->cover_image) {
@@ -75,6 +75,7 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Books retrieved successfully',
                 'data' => $cleanedBooks,
                 'pagination' => [
@@ -105,6 +106,7 @@ class BookApiController extends Controller
             if (!$book) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Book not found',
                 ], 404);
             }
@@ -124,12 +126,14 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book retrieved successfully',
                 'data' => $book,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving book',
                 'error' => $e->getMessage(),
             ], 500);
@@ -170,18 +174,21 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book created successfully',
                 'data' => $book,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error creating book',
                 'error' => $e->getMessage(),
             ], 500);
@@ -200,6 +207,7 @@ class BookApiController extends Controller
             if (!$book) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Book not found',
                 ], 404);
             }
@@ -229,18 +237,21 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book updated successfully',
                 'data' => $updated,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error updating book',
                 'error' => $e->getMessage(),
             ], 500);
@@ -259,6 +270,7 @@ class BookApiController extends Controller
             if (!$book) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Book not found',
                 ], 404);
             }
@@ -267,6 +279,7 @@ class BookApiController extends Controller
             if ($book->status === 'Borrowed') {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Cannot delete a borrowed book',
                 ], 400);
             }
@@ -275,11 +288,13 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book deleted successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error deleting book',
                 'error' => $e->getMessage(),
             ], 500);
@@ -297,12 +312,14 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => "Books with status '$status' retrieved successfully",
                 'data' => $books,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving books',
                 'error' => $e->getMessage(),
             ], 500);
@@ -317,13 +334,13 @@ class BookApiController extends Controller
     {
         try {
             $books = $this->bookService->getBooksByStatus('Available');
-            
+
             // Clean and format books - test each field
             $formattedBooks = [];
-            
+
             foreach ($books as $book) {
                 $item = [];
-                
+
                 // Test each field individually
                 try {
                     // Convert binary image to base64 for JSON transmission
@@ -337,7 +354,7 @@ class BookApiController extends Controller
                             $coverImage = $book->cover_image;
                         }
                     }
-                    
+
                     $item['bookId'] = $book->bookId;
                     $item['title'] = $book->title ?? '';
                     $item['author'] = $book->author ?? '';
@@ -346,7 +363,7 @@ class BookApiController extends Controller
                     $item['year'] = $book->year ?? '';
                     $item['status'] = $book->status ?? 'Available';
                     $item['cover_image'] = $coverImage;
-                    
+
                     $formattedBooks[] = $item;
                 } catch (\Exception $e) {
                     \Log::error('Error processing book ID ' . $book->bookId . ': ' . $e->getMessage());
@@ -359,18 +376,20 @@ class BookApiController extends Controller
                 ob_end_clean();
             }
             ob_start();
-            
+
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Available books retrieved successfully',
                 'data' => $formattedBooks,
             ], 200, ['Content-Type' => 'application/json; charset=UTF-8']);
         } catch (\Exception $e) {
             \Log::error('Error in getAvailableBooks: ' . $e->getMessage());
             \Log::error('Line: ' . $e->getLine());
-            
+
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving available books',
                 'error' => $e->getMessage(),
             ], 500);
@@ -385,13 +404,13 @@ class BookApiController extends Controller
         if (empty($text)) {
             return '';
         }
-        
+
         // Remove any non-UTF-8 characters
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-        
+
         // Additional cleaning: remove control characters except newlines/tabs
         $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
-        
+
         return $text;
     }
 
@@ -406,12 +425,14 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => "Books in category '$category' retrieved successfully",
                 'data' => $books,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving books',
                 'error' => $e->getMessage(),
             ], 500);
@@ -427,6 +448,7 @@ class BookApiController extends Controller
         try {
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book statistics retrieved successfully',
                 'data' => [
                     'total_books' => $this->bookService->getTotalBooks(),
@@ -437,6 +459,7 @@ class BookApiController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving statistics',
                 'error' => $e->getMessage(),
             ], 500);
@@ -446,7 +469,7 @@ class BookApiController extends Controller
     /**
      * GET /api/books/{id}/borrowing-history
      * Get borrowing history for a specific book
-     * 
+     *
      * Cross-Module API Call: Book Module → Borrowing Module
      */
     public function borrowingHistory(int $id): JsonResponse
@@ -457,6 +480,7 @@ class BookApiController extends Controller
             if (!$book) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Book not found',
                 ], 404);
             }
@@ -471,6 +495,7 @@ class BookApiController extends Controller
             if (!$response->successful()) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Failed to retrieve borrowing statistics',
                     'error' => $response->json()['message'] ?? 'Unknown error',
                 ], $response->status());
@@ -480,6 +505,7 @@ class BookApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Book borrowing history retrieved successfully',
                 'book' => [
                     'id' => $book->bookId,
@@ -492,6 +518,7 @@ class BookApiController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving borrowing history',
                 'error' => $e->getMessage(),
             ], 500);

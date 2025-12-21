@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * UserApiController - REST API for User Module
- * 
+ *
  * Provides JSON endpoints for CRUD operations on users.
  * Can be consumed by mobile apps, frontend frameworks, or external services.
  */
@@ -49,6 +49,7 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Users retrieved successfully',
                 'data' => [
                     'data' => $processedUsers,
@@ -63,6 +64,7 @@ class UserApiController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving users',
                 'error' => $e->getMessage(),
             ], 500);
@@ -81,6 +83,7 @@ class UserApiController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'User not found',
                 ], 404);
             }
@@ -96,12 +99,14 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User retrieved successfully',
                 'data' => $user,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving user',
                 'error' => $e->getMessage(),
             ], 500);
@@ -131,18 +136,21 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User created successfully',
                 'data' => $user,
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error creating user',
                 'error' => $e->getMessage(),
             ], 500);
@@ -161,6 +169,7 @@ class UserApiController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'User not found',
                 ], 404);
             }
@@ -177,18 +186,21 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User updated successfully',
                 'data' => $updated,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error updating user',
                 'error' => $e->getMessage(),
             ], 500);
@@ -207,6 +219,7 @@ class UserApiController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'User not found',
                 ], 404);
             }
@@ -215,11 +228,13 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User deleted successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error deleting user',
                 'error' => $e->getMessage(),
             ], 500);
@@ -245,12 +260,14 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => "Users with role '$role' retrieved successfully",
                 'data' => $processedUsers,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving users',
                 'error' => $e->getMessage(),
             ], 500);
@@ -269,6 +286,7 @@ class UserApiController extends Controller
             if (!$query) {
                 return response()->json([
                     'success' => false,
+                    'timestamp' => now()->toIso8601String(),
                     'message' => 'Search query required',
                 ], 400);
             }
@@ -277,12 +295,14 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Search completed successfully',
                 'data' => $users,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error searching users',
                 'error' => $e->getMessage(),
             ], 500);
@@ -298,6 +318,7 @@ class UserApiController extends Controller
         try {
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User statistics retrieved successfully',
                 'data' => [
                     'total_users' => $this->userService->getTotalUsers(),
@@ -309,6 +330,7 @@ class UserApiController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving statistics',
                 'error' => $e->getMessage(),
             ], 500);
@@ -326,12 +348,14 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User reservations retrieved successfully',
                 'data' => $reservations,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving user reservations',
                 'error' => $e->getMessage(),
             ], 500);
@@ -349,12 +373,14 @@ class UserApiController extends Controller
 
             return response()->json([
                 'success' => true,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'User fines retrieved successfully',
                 'data' => $fines,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'timestamp' => now()->toIso8601String(),
                 'message' => 'Error retrieving user fines',
                 'error' => $e->getMessage(),
             ], 500);

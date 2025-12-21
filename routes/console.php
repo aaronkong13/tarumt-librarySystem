@@ -20,3 +20,19 @@ Schedule::command('fines:process-overdue')
     ->at('00:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule due book email reminders daily at 8:00 AM
+// Sends reminders for:
+// - Books due in 3 days, 1 day, and today
+// - Overdue books at 1, 3, 7, 14 days and weekly thereafter
+Schedule::command('reminders:send-due-books')
+    ->daily()
+    ->at('08:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onSuccess(function () {
+        \Illuminate\Support\Facades\Log::info('Due book reminders sent successfully');
+    })
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('Failed to send due book reminders');
+    });

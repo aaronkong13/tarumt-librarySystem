@@ -21,6 +21,15 @@ use App\Http\Controllers\Api\BorrowingApiController;
 |
 */
 
+// =====================================================================
+// REMINDER API ENDPOINTS (Admin/Staff Only)
+// =====================================================================
+Route::prefix('reminders')->middleware(['auth:sanctum', 'check.staff'])->group(function () {
+    Route::get('/statistics', [BorrowingApiController::class, 'reminderStatistics'])->name('api.reminders.statistics');
+    Route::get('/preview', [BorrowingApiController::class, 'previewReminders'])->name('api.reminders.preview');
+    Route::get('/configuration', [BorrowingApiController::class, 'reminderConfiguration'])->name('api.reminders.configuration');
+    Route::post('/send', [BorrowingApiController::class, 'sendReminders'])->name('api.reminders.send');
+});
 
 // =====================================================================
 // BORROWING API ENDPOINTS (REST)
@@ -78,11 +87,11 @@ Route::prefix('books')->group(function () {
     // Get available books
     Route::get('/available', [BookApiController::class, 'getAvailableBooks'])
         ->name('api.books.available');
-    
+
     // Get single book by ID
     Route::get('/{id}', [BookApiController::class, 'show'])
         ->name('api.books.show-internal');
-    
+
     // Update book (for status changes from borrowing module)
     Route::put('/{id}', [BookApiController::class, 'update'])
         ->name('api.books.update-internal');

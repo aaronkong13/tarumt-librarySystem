@@ -8,6 +8,7 @@ use App\Models\Reservation;
 use App\Models\Fine;
 use App\Models\User;
 use App\Services\ReservationService;
+use App\Notifications\BookBorrowedNotification;
 use Illuminate\Support\Facades\Http;
 use App\States\Borrowing\BorrowingContext;
 use App\Observers\Reservation\ReservationSubject;
@@ -23,7 +24,7 @@ use Exception;
  *
  * Uses State Pattern and Observer Pattern for borrowing workflow.
  * All business logic is here - controllers just handle HTTP concerns.
- * 
+ *
  * MODULE SEPARATION:
  * - Borrowing Module (this) ≠ Book Module
  * - Uses HTTP calls to Book API endpoints (localhost:8001/api/books)
@@ -53,7 +54,7 @@ class BorrowingService
             if (!$book) {
                 throw new Exception("Book not found");
             }
-            
+
             // Get user directly (same application - direct access OK)
             $user = User::find($userId);
             if (!$user) {
@@ -104,7 +105,24 @@ class BorrowingService
                 'new_state' => $context->getStateName()
             ]);
 
-            return $borrowing->load(['user', 'book']);
+            // Send email notification to user
+            $borrowing->load(['user', 'book']);
+            if ($user->email_verified_at) {
+                try {
+                    $user->notify(new BookBorrowedNotification($borrowing));
+                    Log::info('Book borrowed notification sent', [
+                        'borrowing_id' => $borrowing->id,
+                        'user_email' => $user->email,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send book borrowed notification', [
+                        'borrowing_id' => $borrowing->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return $borrowing;
         });
     }
 
@@ -171,7 +189,7 @@ class BorrowingService
 
             $apiUrl = config('app.api_url', config('app.url'));
             $newStatus = 'Available';
-            
+
             if ($hasReservation) {
                 // Book stays as 'Reserved' for the next person in queue
                 $reservationService = app(ReservationService::class);
@@ -186,7 +204,7 @@ class BorrowingService
                     ]);
                 }
             }
-            
+
             // Update book status via API (cross-module: Borrowing → Book)
             try {
                 Http::put("{$apiUrl}/api/books/{$book->bookId}", ['status' => $newStatus]);
@@ -217,23 +235,23 @@ class BorrowingService
         return DB::transaction(function () use ($userId, $bookId, $expiryDays) {
             // Validate via API calls (cross-module) - Call BookApiController & UserApiController
             $apiUrl = config('app.api_url', config('app.url'));
-            
+
             $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
             if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
                 throw new Exception("Book not found");
             }
-            
+
             $userResponse = Http::get("{$apiUrl}/api/users/{$userId}");
             if (!$userResponse->successful() || !$userResponse->json()['success']) {
                 throw new Exception("User not found");
             }
-            
+
             // Reconstruct book model from API data for State Pattern
             $bookData = $bookResponse->json()['data'];
             $book = new Book((array)$bookData);
             $book->exists = true;
             $book->bookId = $bookData['bookId'];
-            
+
             // Get user model
             $user = User::findOrFail($userId);
 
@@ -418,10 +436,10 @@ class BorrowingService
         }
 
         $borrowings = $query->orderBy('borrow_date', 'desc')->get();
-        
+
         // Fetch book data via API (cross-module: Borrowing → Book Management)
         $apiUrl = config('app.api_url', config('app.url'));
-        
+
         return $borrowings->map(function ($borrowing) use ($apiUrl) {
             // Call BookApiController to get book data
             $bookData = null;
@@ -429,7 +447,7 @@ class BorrowingService
                 $bookResponse = Http::get("{$apiUrl}/api/books/{$borrowing->book_id}");
                 if ($bookResponse->successful() && $bookResponse->json()['success']) {
                     $bookData = $bookResponse->json()['data'];
-                    
+
                     // Reconstruct Book model for State Pattern
                     $book = new Book((array)$bookData);
                     $book->exists = true;
@@ -442,7 +460,7 @@ class BorrowingService
                 // Fallback if API fails
                 $book = Book::find($borrowing->book_id);
             }
-            
+
             // === STATE PATTERN: Get state for each borrowing ===
             $context = new BorrowingContext($book, $borrowing);
 
@@ -480,27 +498,27 @@ class BorrowingService
         }
 
         $fines = $query->orderBy('created_at', 'desc')->get();
-        
+
         // Fetch book data via API (cross-module: Borrowing → Book Management)
         $apiUrl = config('app.api_url', config('app.url'));
-        
+
         return $fines->map(function ($fine) use ($apiUrl) {
             // === STATE PATTERN: Get state context ===
             $stateInfo = 'N/A';
             $bookData = null;
-            
+
             if ($fine->borrowing && $fine->borrowing->book_id) {
                 try {
                     // Call BookApiController to get book data
                     $bookResponse = Http::get("{$apiUrl}/api/books/{$fine->borrowing->book_id}");
                     if ($bookResponse->successful() && $bookResponse->json()['success']) {
                         $bookData = $bookResponse->json()['data'];
-                        
+
                         // Reconstruct Book model for State Pattern
                         $book = new Book((array)$bookData);
                         $book->exists = true;
                         $book->bookId = $bookData['bookId'];
-                        
+
                         $context = new BorrowingContext($book, $fine->borrowing);
                         $stateInfo = $context->getStateName();
                     }
@@ -513,7 +531,7 @@ class BorrowingService
                     }
                 }
             }
-            
+
             // Add book data to borrowing object for view access
             $borrowingData = $fine->borrowing;
             if ($borrowingData && $bookData) {
@@ -677,10 +695,10 @@ class BorrowingService
             ->with(['borrowing'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         // Fetch book data via API for each fine (cross-module: Borrowing → Book Management)
         $apiUrl = config('app.api_url', config('app.url'));
-        
+
         return $fines->map(function ($fine) use ($apiUrl) {
             if ($fine->borrowing && $fine->borrowing->book_id) {
                 try {
@@ -706,11 +724,11 @@ class BorrowingService
         // Get book data via API (cross-module: Borrowing → Book)
         $apiUrl = config('app.api_url', config('app.url'));
         $bookResponse = Http::get("{$apiUrl}/api/books/{$bookId}");
-        
+
         if (!$bookResponse->successful() || !$bookResponse->json()['success']) {
             throw new Exception("Book not found");
         }
-        
+
         $bookData = $bookResponse->json()['data'];
         $book = (object)$bookData;
 
@@ -761,6 +779,7 @@ class BorrowingService
             ->count('user_id');
 
         return [
+            'timestamp' => now()->toIso8601String(),
             'total_borrows' => $totalBorrows,
             'completed_borrows' => $completedBorrows,
             'currently_borrowed' => $currentlyBorrowed,
