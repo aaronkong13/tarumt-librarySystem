@@ -33,7 +33,7 @@ use Exception;
 class BorrowingService
 {
     protected $fineRatePerDay = 0.50;
-    protected $defaultBorrowDays = -2;
+    protected $defaultBorrowDays = 5;
     protected $reservationExpiryDays = 3;
 
     public function __construct()
