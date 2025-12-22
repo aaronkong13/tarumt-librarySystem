@@ -153,10 +153,10 @@ class Book extends Model
      *
      * @return bool
      */
-    public function hasActiveReservation(): bool
-    {
-        return $this->activeReservations()->exists();
-    }
+    // public function hasActiveReservation(): bool
+    // {
+    //     return $this->activeReservations()->exists();
+    // }
 
     /**
      * Get a human-readable status display string
