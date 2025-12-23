@@ -276,4 +276,136 @@ class ReservationController extends Controller
             'average_wait_days' => round($avgWaitTime ?? 0, 1),
         ]);
     }
+
+    /**
+     * Display the public student book catalog
+     * Students can browse and reserve books
+     * Fetches books via API call (cross-module: Reservation → Book)
+     * 
+     * GET /books/catalog
+     */
+    public function catalog(Request $request)
+    {
+        \Log::info('Catalog request', [
+            'is_ajax' => $request->ajax(),
+            'wants_json' => $request->wantsJson(),
+            'x_requested_with' => $request->header('X-Requested-With'),
+            'all_headers' => $request->headers->all(),
+        ]);
+
+        $apiUrl = config('app.api_url', config('app.url'));
+        $books = [];
+        $pagination = [];
+        
+        try {
+            // Build query parameters
+            $params = array_filter([
+                'q' => $request->input('q'),
+                'status' => $request->input('status'),
+                'category' => $request->input('category'),
+                'year_from' => $request->input('year_from'),
+                'year_to' => $request->input('year_to'),
+                'sort' => $request->input('sort'),
+                'page' => $request->input('page', 1),
+                'per_page' => 12,
+            ]);
+            
+            $queryString = http_build_query($params);
+            $response = \Illuminate\Support\Facades\Http::get("{$apiUrl}/api/books?{$queryString}");
+            
+            if ($response->successful()) {
+                $body = $response->body();
+                // Remove BOM if present
+                if (substr($body, 0, 3) === "\xEF\xBB\xBF") {
+                    $body = substr($body, 3);
+                }
+                $jsonData = json_decode($body, true);
+                
+                if ($jsonData && isset($jsonData['success']) && $jsonData['success']) {
+                    $booksData = $jsonData['data'] ?? [];
+                    $pagination = $jsonData['pagination'] ?? [];
+                    
+                    // Convert array data to collection for compatibility with blade template
+                    $books = collect($booksData)->map(function($bookData) {
+                        return (object) $bookData;
+                    });
+                    
+                    // Create a paginator instance
+                    $books = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $books,
+                        $pagination['total'] ?? 0,
+                        $pagination['per_page'] ?? 12,
+                        $pagination['current_page'] ?? 1,
+                        ['path' => $request->url(), 'query' => $request->query()]
+                    );
+                } else {
+                    \Log::error('API returned unsuccessful response', [
+                        'status' => $response->status(),
+                        'json' => $jsonData
+                    ]);
+                    $books = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12, 1);
+                }
+            } else {
+                \Log::error('API call failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                $books = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12, 1);
+            }
+        } catch (Exception $e) {
+            // Handle API error gracefully
+            \Log::error('Exception calling books API: ' . $e->getMessage());
+            $books = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 12, 1);
+        }
+
+        // Get user's borrowed and reserved books for status display
+        $userBorrowedBookIds = [];
+        $userReservedBookIds = [];
+        
+        if (Auth::check()) {
+            // Get all book IDs that current user has borrowed
+            $userBorrowedBookIds = \App\Models\Borrowing::where('user_id', Auth::id())
+                ->where('status', 'borrowed')
+                ->pluck('book_id')
+                ->toArray();
+            
+            // Get all book IDs that current user has reserved
+            $userReservedBookIds = \App\Models\Reservation::where('user_id', Auth::id())
+                ->whereIn('status', ['waiting', 'notified'])
+                ->pluck('book_id')
+                ->toArray();
+        }
+
+        // If this is an AJAX request (filter/sort from JavaScript)
+        if ($request->ajax() || $request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('layouts.book-cards', [
+                'books' => $books,
+                'userBorrowedBookIds' => $userBorrowedBookIds,
+                'userReservedBookIds' => $userReservedBookIds,
+            ])->render();
+        }
+
+        // Get categories for filter dropdown
+        $categories = [
+            'Fiction',
+            'Non-Fiction',
+            'Science',
+            'Technology',
+            'History',
+            'Biography',
+            'Self-Help',
+            'Business',
+            'Education',
+            'Reference'
+        ];
+
+        // Normal request - return full page
+        return view('books.student-book', [
+            'books' => $books,
+            'filters' => $request->only(['q', 'status', 'category', 'year_from', 'year_to', 'sort']),
+            'categories' => $categories,
+            'userBorrowedBookIds' => $userBorrowedBookIds,
+            'userReservedBookIds' => $userReservedBookIds,
+        ]);
+    }
 }

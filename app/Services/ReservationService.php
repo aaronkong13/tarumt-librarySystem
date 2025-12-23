@@ -248,6 +248,7 @@ class ReservationService
                 'expiry_date' => $reservation->expiry_date?->format('Y-m-d'),
                 'remaining_days' => $reservation->getRemainingDays(),
                 'can_cancel' => !in_array($reservation->status, [
+                    Reservation::STATUS_NOTIFIED,
                     Reservation::STATUS_FULFILLED, 
                     Reservation::STATUS_EXPIRED
                 ]),

@@ -42,8 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
 
-    // User-facing catalog (students; card layout, no staff actions)
-    Route::get('/books/catalog', [BookController::class, 'catalog'])->name('books.catalog');
+    // User-facing catalog (students; card layout with reservation functionality)
+    Route::get('/books/catalog', [ReservationController::class, 'catalog'])->name('books.catalog');
 
     // --- User Management Routes (Staff/Admin Only) ---
     Route::middleware('check.staff')->group(function () {

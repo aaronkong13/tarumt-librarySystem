@@ -61,7 +61,7 @@ class BookApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $books = $this->bookService->getFilteredBooks($request, 15);
+            $books = $this->bookService->getFilteredBooks($request, 13);
 
             // Convert BLOB cover_image to base64 for JSON serialization
             $cleanedBooks = array_map(function($book) {
@@ -93,6 +93,55 @@ class BookApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * GET /api/books (Internal cross-module endpoint)
+     * Get all books with filters for other modules
+     */
+    // public function getBooks(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $perPage = $request->input('per_page', 12);
+    //         $books = $this->bookService->getFilteredBooks($request, $perPage);
+
+    //         // Convert BLOB cover_image to base64 for JSON serialization
+    //         $cleanedBooks = array_map(function($book) {
+    //             if ($book->cover_image) {
+    //                 $book->cover_image = 'data:image/jpeg;base64,' . base64_encode($book->cover_image);
+    //             } else {
+    //                 $book->cover_image = null;
+    //             }
+    //             return $book;
+    //         }, $books->items());
+
+    //         // Clear output buffers to prevent BOM issues
+    //         while (ob_get_level()) {
+    //             ob_end_clean();
+    //         }
+    //         ob_start();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'timestamp' => now()->toIso8601String(),
+    //             'message' => 'Books retrieved successfully',
+    //             'data' => $cleanedBooks,
+    //             'pagination' => [
+    //                 'total' => $books->total(),
+    //                 'per_page' => $books->perPage(),
+    //                 'current_page' => $books->currentPage(),
+    //                 'last_page' => $books->lastPage(),
+    //                 'from' => $books->firstItem(),
+    //                 'to' => $books->lastItem(),
+    //             ],
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Error retrieving books',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * GET /api/books/{id}

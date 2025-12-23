@@ -108,7 +108,7 @@ class Reservation extends Model
         }
         
         $days = now()->diffInDays($this->expiry_date, false);
-        return max(0, $days);
+        return (int) max(0, $days);
     }
 
     public function getStatusLabel()

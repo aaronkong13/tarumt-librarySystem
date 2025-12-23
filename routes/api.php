@@ -82,8 +82,17 @@ Route::get('/borrowings/users/{userId}/history', [BorrowingApiController::class,
 Route::get('/reservations/users/{userId}/history', [ReservationApiController::class, 'getUserReservations'])
     ->name('api.reservations.user-history');
 
-// BOOK API ENDPOINTS (for Borrowing module)
+// BOOK API ENDPOINTS (for Borrowing/Resrvation module)
 Route::prefix('books')->group(function () {
+    // // Get all books with filters (cross-module endpoint)
+    // Route::get('/allBooks', [BookApiController::class, 'getBooks'])
+    //     ->name('api.books.get');
+
+   // List all books with filtering
+        Route::get('/', [BookApiController::class, 'index'])
+             ->name('api.books.index');
+
+
     // Get available books
     Route::get('/available', [BookApiController::class, 'getAvailableBooks'])
         ->name('api.books.available');
@@ -117,8 +126,8 @@ Route::middleware(['web'])->group(function () {
         // ═════════════════════════════════════════════════════════════════
 
         // List all books with filtering
-        Route::get('/', [BookApiController::class, 'index'])
-            ->name('api.books.index');
+        // Route::get('/', [BookApiController::class, 'index'])
+        //     ->name('api.books.index');
 
         // Get books by status
         Route::get('/status/{status}', [BookApiController::class, 'getByStatus'])

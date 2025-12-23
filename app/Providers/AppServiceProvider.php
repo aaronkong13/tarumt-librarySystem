@@ -11,7 +11,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register BookSearchContext with filter strategies
+        $this->app->singleton(\App\Services\BookSearch\BookSearchContext::class, function ($app) {
+            return new \App\Services\BookSearch\BookSearchContext([
+                new \App\Services\BookSearch\Strategies\KeywordFilter(),
+                new \App\Services\BookSearch\Strategies\StatusFilter(),
+                new \App\Services\BookSearch\Strategies\CategoryFilter(),
+                new \App\Services\BookSearch\Strategies\YearRangeFilter(),
+                new \App\Services\BookSearch\Strategies\SortStrategy(),
+            ]);
+        });
     }
 
     /**
